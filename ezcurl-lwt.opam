@@ -18,6 +18,7 @@ depends: [
   "lwt"
   "dune" {build}
   "odoc" {with-doc}
+  "mdx" {with-test}
   "ocaml" { >= "4.03.0" }
 ]
 tags: [ "curl" "web" "http" "client" "lwt" ]

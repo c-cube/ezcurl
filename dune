@@ -1,0 +1,10 @@
+
+(alias
+ (name runtest)
+ (package ezcurl-lwt)
+ (deps README.md)
+ (action
+   (progn
+     (run ocaml-mdx test %{deps})
+     (diff? %{deps} %{deps}.corrected))))
+
