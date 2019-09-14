@@ -2,6 +2,13 @@
 
 A simple wrapper around OCurl, for easy tasks around http.
 
+**project goals**
+
+- be as simple to use as possible.
+- be as reliable as possible (work is done by cURL and the ocurl bindings anyway).
+- stable API with few dependencies, so that user code compiles without breakage
+  for a long time.
+
 ## Installation
 
 - for the synchronous library: `opam install ezcurl`
@@ -36,6 +43,8 @@ val content : Ezcurl_core.response =
 - : int = 200
 ```
 
+It is also possible to create a client with `Ezcurl.make()` and re-use
+it across calls with the optional parameter `client`.
 
 ### Lwt API
 
