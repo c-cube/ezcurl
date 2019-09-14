@@ -1,3 +1,15 @@
+
+module Config : sig
+  type t
+  val default : t
+  val verbose : bool -> t -> t
+  val authmethod : Curl.curlAuth list -> t -> t
+  val max_redirects : int -> t -> t
+  val follow_location : bool -> t -> t
+  val username : string -> t -> t
+  val password : string -> t -> t
+end
+
 type t
 
 val make :
@@ -35,14 +47,9 @@ type meth =
 val string_of_meth : meth -> string
 
 val http :
-  ?verbose:bool ->
   ?tries:int ->
   ?client:t ->
-  ?authmethod:Curl.curlAuth list ->
-  ?max_redirects:int ->
-  ?follow_location:bool ->
-  ?username:string ->
-  ?password:string ->
+  ?config:Config.t ->
   ?headers:(string*string) list ->
   url:string ->
   meth:meth ->
@@ -50,14 +57,9 @@ val http :
   (response, Curl.curlCode * string) result
 
 val get :
-  ?verbose:bool ->
   ?tries:int ->
   ?client:t ->
-  ?authmethod:Curl.curlAuth list ->
-  ?max_redirects:int ->
-  ?follow_location:bool ->
-  ?username:string ->
-  ?password:string ->
+  ?config:Config.t ->
   ?headers:(string*string) list ->
   url:string ->
   unit ->

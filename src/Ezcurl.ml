@@ -1,3 +1,34 @@
+
+let opt_map ~f = function None -> None | Some x -> Some (f x)
+let opt_iter ~f = function None -> () | Some x -> f x
+
+module Config = struct
+  type t = {
+    verbose: bool;
+    authmethod: Curl.curlAuth list option;
+    max_redirects: int;
+    follow_location: bool;
+    username: string option;
+    password: string option;
+  }
+
+  let default : t = {
+    verbose=false;
+    max_redirects = 50;
+    follow_location=true;
+    authmethod=None;
+    username=None;
+    password=None;
+  }
+
+  let password x self = {self with password=Some x}
+  let username x self = {self with username=Some x}
+  let verbose x self = { self with verbose=x}
+  let follow_location x self = {self with follow_location=x}
+  let max_redirects x self = {self with max_redirects=max 1 x}
+  let authmethod x self = {self with authmethod=Some x}
+end
+
 type t = Curl.t
 
 let _init = lazy (
@@ -13,6 +44,27 @@ let make ?(set_opts=fun _ -> ()) () : t =
   c
 
 let delete = Curl.cleanup
+
+(* set options *)
+let _apply_config (self:t) (config:Config.t) : unit =
+  let {
+    Config.verbose; max_redirects; follow_location; authmethod;
+    username; password;
+  } = config in
+  Curl.set_verbose self verbose;
+  Curl.set_maxredirs self max_redirects;
+  Curl.set_followlocation self follow_location;
+  opt_iter authmethod ~f:(Curl.set_httpauth self);
+  opt_iter username ~f:(Curl.set_username self);
+  opt_iter password ~f:(Curl.set_password self);
+  ()
+
+let _set_headers (self:t) (headers: _ list) : unit =
+  let headers =
+    List.map (fun (k,v) -> k ^ ": " ^ v ^ "\r\n") headers
+  in
+  Curl.set_httpheader self headers;
+  ()
 
 let with_client ?set_opts f =
   let c = make ?set_opts () in
@@ -72,42 +124,28 @@ let string_of_meth = function
   | POST _ -> "POST"
   | PUT -> "PUT"
 
-let opt_map ~f = function None -> None | Some x -> Some (f x)
-let opt_iter ~f = function None -> () | Some x -> f x
-
-let http ?(verbose=false) ?(tries=1)
-    ?client ?authmethod ?(max_redirects=50) ?(follow_location=false)
-    ?username ?password ?(headers=[])
-    ~url ~meth () : _ result =
+let http
+    ?(tries=1) ?client ?(config=Config.default) ?(headers=[]) ~url ~meth ()
+  : _ result =
   let do_cleanup, self = match client with
     | None -> true, make()
     | Some c ->
       Curl.reset c;
       false, c
   in
+  _apply_config self config;
   (* local state *)
   let tries = max tries 1 in (* at least one attempt *)
   let body = ref "" in  
   let resp_headers = ref [] in
   let resp_headers_done = ref false in (* once we get "\r\n" header line *)
-  (* start setting options *)
   Curl.set_url self url;
-  Curl.set_verbose self verbose;
-  Curl.set_maxredirs self max_redirects;
-  Curl.set_followlocation self follow_location;
-  Curl.set_header self false;
   begin match meth with
     | POST l -> Curl.set_httppost self l;
     | GET -> Curl.set_httpget self true;
     | PUT -> Curl.set_put self true;
   end;
-  opt_iter authmethod ~f:(Curl.set_httpauth self);
-  opt_iter username ~f:(Curl.set_username self);
-  opt_iter password ~f:(Curl.set_password self);
-  let headers =
-    List.map (fun (k,v) -> k ^ ": " ^ v ^ "\r\n") headers
-  in
-  Curl.set_httpheader self headers;
+  _set_headers self headers;
   Curl.set_headerfunction self
     (fun s0 ->
        let s = String.trim s0 in
@@ -143,12 +181,8 @@ let http ?(verbose=false) ?(tries=1)
   in
   loop tries
 
-let get ?verbose ?tries ?client ?authmethod ?max_redirects
-    ?follow_location
-    ?username ?password ?headers ~url () : _ result =
-  http ?verbose ?tries ?client ?authmethod ?max_redirects
-    ?follow_location
-    ?username ?password ?headers ~url ~meth:GET ()
+let get ?tries ?client ?config ?headers ~url () : _ result =
+  http ?tries ?client ?config ?headers  ~url ~meth:GET ()
 
 (* TODO
 let post ?verbose ?tries ?client ?auth ?username ?password ~url () : _ result =
