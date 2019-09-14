@@ -10,6 +10,9 @@ module Config : sig
   val follow_location : bool -> t -> t
   val username : string -> t -> t
   val password : string -> t -> t
+
+  val pp : Format.formatter -> t -> unit
+  val to_string : t -> string
 end
 
 type t = Curl.t
@@ -34,6 +37,9 @@ type response_info = {
   ri_redirect_count: int;
 }
 
+val pp_response_info : Format.formatter -> response_info -> unit
+val string_of_response_info : response_info -> string
+
 type response = {
   code: int;
   headers: (string * string) list;
@@ -41,11 +47,15 @@ type response = {
   info: response_info;
 }
 
+val pp_response : Format.formatter -> response -> unit
+val string_of_response : response -> string
+
 type meth =
   | GET
   | POST of Curl.curlHTTPPost list
   | PUT
 
+val pp_meth : Format.formatter -> meth -> unit
 val string_of_meth : meth -> string
 
 (** {2 Underlying IO Monad} *)

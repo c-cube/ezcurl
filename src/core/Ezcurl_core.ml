@@ -26,6 +26,34 @@ module Config = struct
   let follow_location x self = {self with follow_location=x}
   let max_redirects x self = {self with max_redirects=max 1 x}
   let authmethod x self = {self with authmethod=Some x}
+
+  let string_of_authmethod = function
+    | Curl.CURLAUTH_ANY -> "any"
+    | Curl.CURLAUTH_BASIC -> "basic"
+    | Curl.CURLAUTH_DIGEST -> "digest"
+    | Curl.CURLAUTH_GSSNEGOTIATE -> "gss_negotiate"
+    | Curl.CURLAUTH_NTLM -> "ntlm"
+    | Curl.CURLAUTH_ANYSAFE -> "any_safe"
+
+  let str_of_str_opt = function
+    | None -> "<none>"
+    | Some s -> s
+
+  let pp out (self:t) =
+    let {
+      verbose; authmethod; max_redirects; follow_location;
+      username; password;
+    } = self in
+    Format.fprintf out
+      "{@[verbose=%B;@ max_redirects=%d;@ follow_location=%B;@ \
+       username=%s;@ password=%s;@ authmethod=%s@]}"
+      verbose max_redirects follow_location
+      (str_of_str_opt username) (str_of_str_opt password)
+      (match authmethod with
+       | None -> "none"
+       | Some l -> List.map string_of_authmethod l |> String.concat ",")
+
+  let to_string s = Format.asprintf "%a" pp s
 end
 
 type t = Curl.t
@@ -80,12 +108,34 @@ type response_info = {
   ri_redirect_count: int;
 }
 
+let pp_response_info out r =
+  let {ri_response_time; ri_redirect_count} = r in
+  Format.fprintf out "{@[response_time=%.3fs;@ redirect_count=%d@]}"
+    ri_response_time ri_redirect_count
+
+let string_of_response_info s = Format.asprintf "%a" pp_response_info s
+
 type response = {
   code: int;
   headers: (string * string) list;
   body: string;
   info: response_info;
 }
+
+let pp_response out r =
+  let pp_header out (s1,s2) =
+    Format.fprintf out "@[<2>%s:@ %s@]" s1 s2
+  in
+  let pp_headers out l =
+    Format.fprintf out "@[<v>%a@]" (Format.pp_print_list pp_header) l
+  in
+  let {code; body; headers; info; } = r in
+  Format.fprintf out "{@[code=%d;@ headers=@[%a@];@ info=%a;@ body=@[%a@]@]}"
+    code pp_headers headers pp_response_info info
+    Format.pp_print_text body
+
+
+let string_of_response s = Format.asprintf "%a" pp_response s
 
 type meth =
   | GET
@@ -96,6 +146,8 @@ let string_of_meth = function
   | GET -> "GET"
   | POST _ -> "POST"
   | PUT -> "PUT"
+
+let pp_meth out m = Format.pp_print_string out (string_of_meth m)
 
 module type IO = sig
   type 'a t
