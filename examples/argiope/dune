@@ -1,0 +1,6 @@
+
+(executable
+  (name argiope)
+  (synopsis "A web crawler that can typically be found in Texas")
+  (modes native)
+  (libraries uri lambdasoup lwt ezcurl-lwt containers))
