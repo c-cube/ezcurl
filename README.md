@@ -39,7 +39,7 @@ val content : Ezcurl_core.response =
    headers =
 ...
 
-# content.code;;
+# content.Ezcurl.code;;
 - : int = 200
 ```
 
