@@ -121,6 +121,11 @@ module Run = struct
 end
 
 
+let help_str =
+{|A web crawler that can typically be found in Texas.
+
+usage: argiope url [url*] [option*]
+|}
 
 let () =
   let domains = ref Str_set.empty in
@@ -134,9 +139,9 @@ let () =
     "--max", Arg.Set_int max_, " max number of pages to explore";
     "-j", Arg.Set_int j, " number of jobs (default 20)";
   ] |> Arg.align in
-  Arg.parse opts (CCList.Ref.push start) "usage: crawler url [url*] [option*]";
+  Arg.parse opts (CCList.Ref.push start) help_str;
   if !start = [] then (
-    failwith "need at least one initial URL"
+    Arg.usage opts help_str;
   ) else (
     let start = List.map Uri.of_string !start in
     let default_host = match Uri.host @@ List.hd start with
