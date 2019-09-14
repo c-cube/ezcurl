@@ -1,4 +1,4 @@
 (library
  (name ezcurl)
  (flags :standard -warn-error -32)
- (libraries curl))
+ (libraries curl ezcurl.core))
