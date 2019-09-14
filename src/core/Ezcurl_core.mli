@@ -50,10 +50,18 @@ type response = {
 val pp_response : Format.formatter -> response -> unit
 val string_of_response : response -> string
 
+(** The {{: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods} HTTP method}
+  to use *)
 type meth =
   | GET
   | POST of Curl.curlHTTPPost list
   | PUT
+  | DELETE
+  | HEAD
+  | CONNECT
+  | OPTIONS
+  | TRACE
+  | PATCH
 
 val pp_meth : Format.formatter -> meth -> unit
 val string_of_meth : meth -> string
@@ -72,17 +80,44 @@ end
 module type S = sig
   type 'a io
 
+
   val http :
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
+    ?range:string ->
     ?headers:(string*string) list ->
     url:string ->
     meth:meth ->
     unit ->
     (response, Curl.curlCode * string) result io
+  (** General purpose HTTP call via cURL.
+      @param url the URL to query
+      @param meth which method to use (see {!meth})
+      @param tries how many times to retry in case of [CURLE_AGAIN] code
+      @param client a client to reuse (instead of allocating a new one)
+      @param range an optional
+      {{: https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests} byte range}
+      to fetch (either to get large pages
+        by chunks, or to resume an interrupted download).
+      @param config configuration to set
+      @param headers headers of the query
+  *)
 
   val get :
+    ?tries:int ->
+    ?client:t ->
+    ?config:Config.t ->
+    ?range:string ->
+    ?headers:(string*string) list ->
+    url:string ->
+    unit ->
+    (response, Curl.curlCode * string) result io
+  (** Shortcut for [http ~meth:GET]
+      See {!http} for more info.
+  *)
+
+  val put :
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
@@ -90,6 +125,22 @@ module type S = sig
     url:string ->
     unit ->
     (response, Curl.curlCode * string) result io
+  (** Shortcut for [http ~meth:PUT]
+      See {!http} for more info.
+  *)
+
+  val post :
+    ?tries:int ->
+    ?client:t ->
+    ?config:Config.t ->
+    ?headers:(string*string) list ->
+    params:Curl.curlHTTPPost list ->
+    url:string ->
+    unit ->
+    (response, Curl.curlCode * string) result io
+  (** Shortcut for [http ~meth:(POST params)]
+      See {!http} for more info.
+  *)
 end
 
 module Make(IO : IO) : S with type 'a io = 'a IO.t

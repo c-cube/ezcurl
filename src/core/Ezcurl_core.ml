@@ -141,11 +141,23 @@ type meth =
   | GET
   | POST of Curl.curlHTTPPost list
   | PUT
+  | DELETE
+  | HEAD
+  | CONNECT
+  | OPTIONS
+  | TRACE
+  | PATCH
 
 let string_of_meth = function
   | GET -> "GET"
   | POST _ -> "POST"
   | PUT -> "PUT"
+  | DELETE -> "DELETE"
+  | HEAD -> "HEAD"
+  | CONNECT -> "CONNECT"
+  | OPTIONS -> "OPTIONS"
+  | TRACE -> "TRACE"
+  | PATCH -> "PATCH"
 
 let pp_meth out m = Format.pp_print_string out (string_of_meth m)
 
@@ -161,17 +173,44 @@ end
 module type S = sig
   type 'a io
 
+
   val http :
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
+    ?range:string ->
     ?headers:(string*string) list ->
     url:string ->
     meth:meth ->
     unit ->
     (response, Curl.curlCode * string) result io
+  (** General purpose HTTP call via cURL.
+      @param url the URL to query
+      @param meth which method to use (see {!meth})
+      @param tries how many times to retry in case of [CURLE_AGAIN] code
+      @param client a client to reuse (instead of allocating a new one)
+      @param range an optional
+      {{: https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests} byte range}
+      to fetch (either to get large pages
+        by chunks, or to resume an interrupted download).
+      @param config configuration to set
+      @param headers headers of the query
+  *)
 
   val get :
+    ?tries:int ->
+    ?client:t ->
+    ?config:Config.t ->
+    ?range:string ->
+    ?headers:(string*string) list ->
+    url:string ->
+    unit ->
+    (response, Curl.curlCode * string) result io
+  (** Shortcut for [http ~meth:GET]
+      See {!http} for more info.
+  *)
+
+  val put :
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
@@ -179,6 +218,22 @@ module type S = sig
     url:string ->
     unit ->
     (response, Curl.curlCode * string) result io
+  (** Shortcut for [http ~meth:PUT]
+      See {!http} for more info.
+  *)
+
+  val post :
+    ?tries:int ->
+    ?client:t ->
+    ?config:Config.t ->
+    ?headers:(string*string) list ->
+    params:Curl.curlHTTPPost list ->
+    url:string ->
+    unit ->
+    (response, Curl.curlCode * string) result io
+  (** Shortcut for [http ~meth:(POST params)]
+      See {!http} for more info.
+  *)
 end
 
 exception Parse_error of Curl.curlCode * string
@@ -208,14 +263,14 @@ let mk_res (self:t) headers body : (response,_) result =
     Error (e, Curl.strerror e ^ ": " ^ msg)
 
 module Make(IO : IO)
-(*   : S with module IO = IO  *)
+  : S with type 'a io = 'a IO.t
 = struct
   open IO
 
   type 'a io = 'a IO.t
 
   let http
-      ?(tries=1) ?client ?(config=Config.default) ?(headers=[]) ~url ~meth ()
+      ?(tries=1) ?client ?(config=Config.default) ?range ?(headers=[]) ~url ~meth ()
     : _ result io =
     let do_cleanup, self = match client with
       | None -> true, make()
@@ -224,6 +279,7 @@ module Make(IO : IO)
         false, c
     in
     _apply_config self config;
+    opt_iter range ~f:(fun s -> Curl.set_range self s);
     (* local state *)
     let tries = max tries 1 in (* at least one attempt *)
     let body = ref "" in  
@@ -234,6 +290,12 @@ module Make(IO : IO)
       | POST l -> Curl.set_httppost self l;
       | GET -> Curl.set_httpget self true;
       | PUT -> Curl.set_put self true;
+      | DELETE -> Curl.set_customrequest self "DELETE";
+      | HEAD -> Curl.set_customrequest self "HEAD"
+      | CONNECT -> Curl.set_customrequest self "CONNECT"
+      | OPTIONS -> Curl.set_customrequest self "OPTIONS"
+      | TRACE -> Curl.set_customrequest self "TRACE"
+      | PATCH -> Curl.set_customrequest self "PATCH"
     end;
     _set_headers self headers;
     Curl.set_headerfunction self
@@ -270,11 +332,12 @@ module Make(IO : IO)
     in
     loop tries
 
-  let get ?tries ?client ?config ?headers ~url () : _ result io =
-    http ?tries ?client ?config ?headers  ~url ~meth:GET ()
+  let get ?tries ?client ?config ?range ?headers ~url () : _ result io =
+    http ?tries ?client ?config ?range ?headers  ~url ~meth:GET ()
 
-  (* TODO
-  let post ?verbose ?tries ?client ?auth ?username ?password ~url () : _ result =
-    call ?verbose ?tries ?client ?auth ?username ?password ~url ~meth:GET ()
-     *)
+  let post ?tries ?client ?config ?headers ~params ~url () : _ result io =
+    http ?tries ?client ?config ?headers  ~url ~meth:(POST params) ()
+
+  let put ?tries ?client ?config ?headers ~url () : _ result io =
+    http ?tries ?client ?config ?headers  ~url ~meth:PUT ()
 end
