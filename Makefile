@@ -2,7 +2,7 @@
 all: build test
 
 build:
-	@dune build @install
+	@dune build @all
 
 test:
 	@dune runtest --no-buffer --force
@@ -14,6 +14,6 @@ doc:
 	@dune build @doc
 
 watch:
-	@dune build @install -w
+	@dune build @all -w
 
-.PHONY: test watch
+.PHONY: all build test watch
