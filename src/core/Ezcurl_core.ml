@@ -179,6 +179,7 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
+    ?content:string ->
     ?headers:(string*string) list ->
     url:string ->
     meth:meth ->
@@ -194,6 +195,7 @@ module type S = sig
       to fetch (either to get large pages
         by chunks, or to resume an interrupted download).
       @param config configuration to set
+      @param content the content to send as the query's body
       @param headers headers of the query
   *)
 
@@ -216,6 +218,7 @@ module type S = sig
     ?config:Config.t ->
     ?headers:(string*string) list ->
     url:string ->
+    content:string ->
     unit ->
     (response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:PUT]
@@ -270,7 +273,7 @@ module Make(IO : IO)
   type 'a io = 'a IO.t
 
   let http
-      ?(tries=1) ?client ?(config=Config.default) ?range ?(headers=[]) ~url ~meth ()
+      ?(tries=1) ?client ?(config=Config.default) ?range ?content ?(headers=[]) ~url ~meth ()
     : _ result io =
     let do_cleanup, self = match client with
       | None -> true, make()
@@ -280,6 +283,14 @@ module Make(IO : IO)
     in
     _apply_config self config;
     opt_iter range ~f:(fun s -> Curl.set_range self s);
+    opt_iter content ~f:(fun s ->
+        Curl.set_readfunction self
+          (let n = ref 0 in
+           (fun i ->
+              let len = min i (String.length s - !n) in
+              let r = String.sub s !n len in
+              n := !n + len;
+              r)));
     (* local state *)
     let tries = max tries 1 in (* at least one attempt *)
     let body = ref "" in  
@@ -338,6 +349,6 @@ module Make(IO : IO)
   let post ?tries ?client ?config ?headers ~params ~url () : _ result io =
     http ?tries ?client ?config ?headers  ~url ~meth:(POST params) ()
 
-  let put ?tries ?client ?config ?headers ~url () : _ result io =
-    http ?tries ?client ?config ?headers  ~url ~meth:PUT ()
+  let put ?tries ?client ?config ?headers ~url ~content () : _ result io =
+    http ?tries ?client ?config ?headers  ~url ~content ~meth:PUT ()
 end

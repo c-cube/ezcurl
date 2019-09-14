@@ -86,6 +86,7 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
+    ?content:string ->
     ?headers:(string*string) list ->
     url:string ->
     meth:meth ->
@@ -101,6 +102,7 @@ module type S = sig
       to fetch (either to get large pages
         by chunks, or to resume an interrupted download).
       @param config configuration to set
+      @param content the content to send as the query's body
       @param headers headers of the query
   *)
 
@@ -123,6 +125,7 @@ module type S = sig
     ?config:Config.t ->
     ?headers:(string*string) list ->
     url:string ->
+    content:string ->
     unit ->
     (response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:PUT]
