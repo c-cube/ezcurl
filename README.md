@@ -16,6 +16,9 @@ A simple wrapper around OCurl, for easy tasks around http.
 
 ## Usage
 
+A small web crawler can be found in `examples/argiope`. It's very incomplete
+and naive but demonstrates basic usage of `Ezcurl_lwt.get`.
+
 ### Synchronous API
 
 The library lives in a module `Ezcurl`, which wraps `Curl.t` with functions
