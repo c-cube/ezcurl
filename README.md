@@ -31,15 +31,9 @@ object that contains the body, headers, and error code.
 # let url = "https://curl.haxx.se/";;
 val url : string = "https://curl.haxx.se/"
 # let res = Ezcurl.get ~url ();;
-val res : (Ezcurl_core.response, Curl.curlCode * string) result =
-  Ok
-   {Ezcurl_core.code = 200;
-    headers =
 ...
 # let content = match res with Ok c -> c | Error (_,s) -> failwith s;;
 val content : Ezcurl_core.response =
-  {Ezcurl_core.code = 200;
-   headers =
 ...
 
 # content.Ezcurl.code;;
@@ -75,8 +69,7 @@ val urls : string list =
       | Ok r -> Lwt.return r.Ezcurl_lwt.code
       | Error e -> Lwt.fail (Failure "oh no"))
   ;;
-val codes : int list Ezcurl_lwt.io = <abstr>
-
+...
 # codes;;
 - : int list = [200; 200; 200]
 ```
