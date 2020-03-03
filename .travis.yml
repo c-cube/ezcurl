@@ -8,8 +8,11 @@ env:
   - PINS="ezcurl:. ezcurl-lwt:."
   - DISTRO="ubuntu-16.04"
   matrix:
+  - PACKAGE="ezcurl" OCAML_VERSION="4.03"
   - PACKAGE="ezcurl-lwt" OCAML_VERSION="4.03"
     #- PACKAGE="ezcurl-lwt" OCAML_VERSION="4.04"
     #- PACKAGE="ezcurl-lwt" OCAML_VERSION="4.05" EXTRA_DEPS="base-bigarray"
   - PACKAGE="ezcurl-lwt" OCAML_VERSION="4.06"
+  - PACKAGE="ezcurl" OCAML_VERSION="4.07"
   - PACKAGE="ezcurl-lwt" OCAML_VERSION="4.07"
+  - PACKAGE="ezcurl-lwt" OCAML_VERSION="4.10"

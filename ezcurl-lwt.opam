@@ -11,12 +11,10 @@ build: [
   ["dune" "runtest" "-p" name] {with-test}
 ]
 depends: [
-  "base-bytes"
-  "result"
   "ocurl"
-  "ezcurl"
+  "ezcurl" { = version }
   "lwt"
-  "dune" {build}
+  "dune" { >= "1.0" }
   "odoc" {with-doc}
   "mdx" {with-test}
   "ocaml" { >= "4.03.0" }

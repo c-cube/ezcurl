@@ -11,10 +11,8 @@ build: [
   ["dune" "runtest" "-p" name] {with-test}
 ]
 depends: [
-  "base-bytes"
-  "result"
   "ocurl"
-  "dune" {build}
+  "dune" { >= "1.0" }
   "odoc" {with-doc}
   "ocaml" { >= "4.03.0" }
 ]
