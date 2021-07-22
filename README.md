@@ -1,4 +1,4 @@
-# EZCurl [![build status](https://travis-ci.org/c-cube/ezcurl.svg?branch=master)](https://travis-ci.org/c-cube/ezcurl)
+# EZCurl [![build](https://github.com/c-cube/ezcurl/actions/workflows/main.yml/badge.svg)](https://github.com/c-cube/ezcurl/actions/workflows/main.yml)
 
 A simple wrapper around OCurl, for easy tasks around http.
 
