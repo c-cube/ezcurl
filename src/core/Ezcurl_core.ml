@@ -293,7 +293,7 @@ module Make(IO : IO)
               r)));
     (* local state *)
     let tries = max tries 1 in (* at least one attempt *)
-    let body = ref "" in  
+    let body = ref "" in
     let resp_headers = ref [] in
     let resp_headers_done = ref false in (* once we get "\r\n" header line *)
     Curl.set_url self url;
@@ -321,8 +321,8 @@ module Make(IO : IO)
              resp_headers_done := false;
              resp_headers := [];
            );
-           
-           resp_headers := s :: !resp_headers; 
+
+           resp_headers := s :: !resp_headers;
          );
          String.length s0);
     Curl.set_writefunction self
