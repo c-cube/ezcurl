@@ -173,13 +173,12 @@ end
 module type S = sig
   type 'a io
 
-
   val http :
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
-    ?content:string ->
+    ?content:[`String of string | `Write of (bytes -> int -> int)] ->
     ?headers:(string*string) list ->
     url:string ->
     meth:meth ->
@@ -195,7 +194,13 @@ module type S = sig
       to fetch (either to get large pages
         by chunks, or to resume an interrupted download).
       @param config configuration to set
-      @param content the content to send as the query's body
+      @param content the content to send as the query's body, either
+        a [`String s] to write a single string, or [`Write f]
+        where [f] is a callback that is called on a buffer [b] with len [n]
+        (as in [f b n]) and returns how many bytes it wrote in the buffer
+        [b] starting at index [0] (at most [n] bytes).
+        It must return [0] when the content is entirely written, and not
+        before.
       @param headers headers of the query
   *)
 
@@ -218,7 +223,7 @@ module type S = sig
     ?config:Config.t ->
     ?headers:(string*string) list ->
     url:string ->
-    content:string ->
+    content:[`String of string | `Write of (bytes -> int -> int)] ->
     unit ->
     (response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:PUT]
@@ -230,6 +235,7 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?headers:(string*string) list ->
+    ?content:[`String of string | `Write of (bytes -> int -> int)] ->
     params:Curl.curlHTTPPost list ->
     url:string ->
     unit ->
@@ -272,6 +278,22 @@ module Make(IO : IO)
 
   type 'a io = 'a IO.t
 
+  let content_read_fun_ content =
+    match content with
+    | `String s ->
+      let n = ref 0 in
+      (fun i ->
+         let len = min i (String.length s - !n) in
+         let r = String.sub s !n len in
+         n := !n + len;
+         r)
+    | `Write f ->
+      let buf = Bytes.create 1024 in
+      (fun i ->
+         let len = min i (Bytes.length buf) in
+         let n = f buf len in
+         Bytes.sub_string buf i n)
+
   let http
       ?(tries=1) ?client ?(config=Config.default) ?range ?content ?(headers=[]) ~url ~meth ()
     : _ result io =
@@ -283,17 +305,13 @@ module Make(IO : IO)
     in
     _apply_config self config;
     opt_iter range ~f:(fun s -> Curl.set_range self s);
-    opt_iter content ~f:(fun s ->
-        Curl.set_readfunction self
-          (let n = ref 0 in
-           (fun i ->
-              let len = min i (String.length s - !n) in
-              let r = String.sub s !n len in
-              n := !n + len;
-              r)));
+    (* TODO: ability to make content a stream with a `read` function *)
+    opt_iter content
+      ~f:(fun content ->
+          Curl.set_readfunction self (content_read_fun_ content));
     (* local state *)
     let tries = max tries 1 in (* at least one attempt *)
-    let body = ref "" in
+    let body = Buffer.create 64 in
     let resp_headers = ref [] in
     let resp_headers_done = ref false in (* once we get "\r\n" header line *)
     Curl.set_url self url;
@@ -327,12 +345,12 @@ module Make(IO : IO)
          String.length s0);
     Curl.set_writefunction self
       (fun s ->
-         body := (if !body = "" then s else !body ^ s);
+         Buffer.add_string body s;
          String.length s);
     let rec loop i =
       IO.perform self >>= function
       | Curl.CURLE_OK ->
-        let r = mk_res self (List.rev !resp_headers) !body in
+        let r = mk_res self (List.rev !resp_headers) (Buffer.contents body) in
         if do_cleanup then Curl.cleanup self;
         return r
       | Curl.CURLE_AGAIN when i > 1 ->
@@ -346,8 +364,8 @@ module Make(IO : IO)
   let get ?tries ?client ?config ?range ?headers ~url () : _ result io =
     http ?tries ?client ?config ?range ?headers  ~url ~meth:GET ()
 
-  let post ?tries ?client ?config ?headers ~params ~url () : _ result io =
-    http ?tries ?client ?config ?headers  ~url ~meth:(POST params) ()
+  let post ?tries ?client ?config ?headers ?content ~params ~url () : _ result io =
+    http ?tries ?client ?config ?headers ?content ~url ~meth:(POST params) ()
 
   let put ?tries ?client ?config ?headers ~url ~content () : _ result io =
     http ?tries ?client ?config ?headers  ~url ~content ~meth:PUT ()
