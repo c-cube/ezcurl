@@ -11,7 +11,7 @@ build: [
   #["dune" "runtest" "-p" name] {with-test}
 ]
 depends: [
-  "ocurl"
+  "ocurl" {>= "0.8.0"}
   "ezcurl" { = version }
   "lwt"
   "dune" { >= "1.0" }
