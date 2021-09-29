@@ -1,4 +1,3 @@
-
 let opt_iter ~f = function None -> () | Some x -> f x
 
 module Config = struct
@@ -9,6 +8,7 @@ module Config = struct
     follow_location: bool;
     username: string option;
     password: string option;
+    user_agent: string option;
   }
 
   let default : t = {
@@ -18,6 +18,7 @@ module Config = struct
     authmethod=None;
     username=None;
     password=None;
+    user_agent=Some "Ezcurl";
   }
 
   let password x self = {self with password=Some x}
@@ -42,16 +43,16 @@ module Config = struct
   let pp out (self:t) =
     let {
       verbose; authmethod; max_redirects; follow_location;
-      username; password;
+      username; password; user_agent
     } = self in
     Format.fprintf out
       "{@[verbose=%B;@ max_redirects=%d;@ follow_location=%B;@ \
-       username=%s;@ password=%s;@ authmethod=%s@]}"
+       username=%s;@ password=%s;@ authmethod=%s; user_agent=%s@]}"
       verbose max_redirects follow_location
       (str_of_str_opt username) (str_of_str_opt password)
       (match authmethod with
        | None -> "none"
-       | Some l -> List.map string_of_authmethod l |> String.concat ",")
+       | Some l -> List.map string_of_authmethod l |> String.concat ",") (str_of_str_opt user_agent)
 
   let to_string s = Format.asprintf "%a" pp s
 end
@@ -76,11 +77,12 @@ let delete = Curl.cleanup
 let _apply_config (self:t) (config:Config.t) : unit =
   let {
     Config.verbose; max_redirects; follow_location; authmethod;
-    username; password;
+    username; password; user_agent
   } = config in
   Curl.set_verbose self verbose;
   Curl.set_maxredirs self max_redirects;
   Curl.set_followlocation self follow_location;
+  Option.iter (fun user_agent -> Curl.set_useragent self user_agent) user_agent;
   opt_iter authmethod ~f:(Curl.set_httpauth self);
   opt_iter username ~f:(Curl.set_username self);
   opt_iter password ~f:(Curl.set_password self);
