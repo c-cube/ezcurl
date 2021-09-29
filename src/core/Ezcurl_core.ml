@@ -82,7 +82,7 @@ let _apply_config (self:t) (config:Config.t) : unit =
   Curl.set_verbose self verbose;
   Curl.set_maxredirs self max_redirects;
   Curl.set_followlocation self follow_location;
-  opt_iter (fun user_agent -> Curl.set_useragent self user_agent) user_agent;
+  opt_iter user_agent ~f:(fun user_agent -> Curl.set_useragent self user_agent);
   opt_iter authmethod ~f:(Curl.set_httpauth self);
   opt_iter username ~f:(Curl.set_username self);
   opt_iter password ~f:(Curl.set_password self);
