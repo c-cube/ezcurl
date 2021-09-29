@@ -18,7 +18,7 @@ module Config = struct
     authmethod=None;
     username=None;
     password=None;
-    user_agent=Some "Ezcurl";
+    user_agent=Some "curl";
   }
 
   let password x self = {self with password=Some x}
@@ -47,7 +47,7 @@ module Config = struct
     } = self in
     Format.fprintf out
       "{@[verbose=%B;@ max_redirects=%d;@ follow_location=%B;@ \
-       username=%s;@ password=%s;@ authmethod=%s; user_agent=%s@]}"
+       username=%s;@ password=%s;@ authmethod=%s;@ user_agent=%s@]}"
       verbose max_redirects follow_location
       (str_of_str_opt username) (str_of_str_opt password)
       (match authmethod with
@@ -82,7 +82,7 @@ let _apply_config (self:t) (config:Config.t) : unit =
   Curl.set_verbose self verbose;
   Curl.set_maxredirs self max_redirects;
   Curl.set_followlocation self follow_location;
-  Option.iter (fun user_agent -> Curl.set_useragent self user_agent) user_agent;
+  opt_iter (fun user_agent -> Curl.set_useragent self user_agent) user_agent;
   opt_iter authmethod ~f:(Curl.set_httpauth self);
   opt_iter username ~f:(Curl.set_username self);
   opt_iter password ~f:(Curl.set_password self);
