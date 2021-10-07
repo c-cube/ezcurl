@@ -90,7 +90,7 @@ let _apply_config (self:t) (config:Config.t) : unit =
 
 let _set_headers (self:t) (headers: _ list) : unit =
   let headers =
-    List.map (fun (k,v) -> k ^ ": " ^ v ^ "\r\n") headers
+    List.map (fun (k,v) -> k ^ ": " ^ v) headers
   in
   Curl.set_httpheader self headers;
   ()
