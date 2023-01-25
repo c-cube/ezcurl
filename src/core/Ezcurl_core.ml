@@ -302,7 +302,6 @@ module Make(IO : IO)
     let do_cleanup, self = match client with
       | None -> true, make()
       | Some c ->
-        Curl.reset c;
         false, c
     in
     _apply_config self config;
