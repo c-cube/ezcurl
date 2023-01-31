@@ -317,6 +317,8 @@ module Make(IO : IO)
     let resp_headers_done = ref false in (* once we get "\r\n" header line *)
     Curl.set_url self url;
     begin match meth with
+      | POST [] when (content <> None) ->
+        Curl.set_post self true
       | POST l -> Curl.set_httppost self l;
       | GET -> Curl.set_httpget self true;
       | PUT -> Curl.set_put self true;
