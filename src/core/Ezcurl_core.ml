@@ -296,9 +296,14 @@ module Make(IO : IO)
          let n = f buf len in
          Bytes.sub_string buf i n)
 
+  let content_size_ = function
+    | `String s -> Some (String.length s)
+    | `Write _ -> None
+
   let http
       ?(tries=1) ?client ?(config=Config.default) ?range ?content ?(headers=[]) ~url ~meth ()
     : _ result io =
+    let headers = ref headers in
     let do_cleanup, self = match client with
       | None -> true, make()
       | Some c ->
@@ -309,7 +314,12 @@ module Make(IO : IO)
     (* TODO: ability to make content a stream with a `read` function *)
     opt_iter content
       ~f:(fun content ->
-          Curl.set_readfunction self (content_read_fun_ content));
+        Curl.set_readfunction self (content_read_fun_ content);
+        (* also set size if known *)
+        match content_size_ content with
+        | None -> headers := ("transfer-encoding", "chunked") :: !headers
+        | Some size -> Curl.set_infilesize self size
+        );
     (* local state *)
     let tries = max tries 1 in (* at least one attempt *)
     let body = Buffer.create 64 in
@@ -321,7 +331,9 @@ module Make(IO : IO)
         Curl.set_post self true
       | POST l -> Curl.set_httppost self l;
       | GET -> Curl.set_httpget self true;
-      | PUT -> Curl.set_put self true;
+      | PUT ->
+          Curl.set_customrequest self "PUT";
+          Curl.set_upload self true;
       | DELETE -> Curl.set_customrequest self "DELETE";
       | HEAD -> Curl.set_customrequest self "HEAD"
       | CONNECT -> Curl.set_customrequest self "CONNECT"
@@ -329,7 +341,7 @@ module Make(IO : IO)
       | TRACE -> Curl.set_customrequest self "TRACE"
       | PATCH -> Curl.set_customrequest self "PATCH"
     end;
-    _set_headers self headers;
+    _set_headers self !headers;
     Curl.set_headerfunction self
       (fun s0 ->
          let s = String.trim s0 in
