@@ -311,15 +311,22 @@ module Make(IO : IO)
     in
     _apply_config self config;
     opt_iter range ~f:(fun s -> Curl.set_range self s);
+
     (* TODO: ability to make content a stream with a `read` function *)
     opt_iter content
       ~f:(fun content ->
         Curl.set_readfunction self (content_read_fun_ content);
         (* also set size if known *)
-        match content_size_ content with
-        | None -> headers := ("transfer-encoding", "chunked") :: !headers
-        | Some size -> Curl.set_infilesize self size
+        match content_size_ content, meth with
+        | None, _ ->
+            Printf.eprintf "size not known\n%!";
+            headers := ("transfer-encoding", "chunked") :: !headers
+        | Some size , POST _ ->
+            Curl.set_postfieldsize self size;
+        | Some size, _ ->
+            Curl.set_infilesize self size
         );
+
     (* local state *)
     let tries = max tries 1 in (* at least one attempt *)
     let body = Buffer.create 64 in
@@ -329,7 +336,8 @@ module Make(IO : IO)
     begin match meth with
       | POST [] when (content <> None) ->
         Curl.set_post self true
-      | POST l -> Curl.set_httppost self l;
+      | POST l ->
+          Curl.set_httppost self l;
       | GET -> Curl.set_httpget self true;
       | PUT ->
           Curl.set_customrequest self "PUT";
@@ -341,6 +349,7 @@ module Make(IO : IO)
       | TRACE -> Curl.set_customrequest self "TRACE"
       | PATCH -> Curl.set_customrequest self "PATCH"
     end;
+
     _set_headers self !headers;
     Curl.set_headerfunction self
       (fun s0 ->
