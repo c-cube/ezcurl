@@ -319,7 +319,6 @@ module Make(IO : IO)
         (* also set size if known *)
         match content_size_ content, meth with
         | None, _ ->
-            Printf.eprintf "size not known\n%!";
             headers := ("expect", "") :: ("transfer-encoding", "chunked") :: !headers
         | Some size , POST _ ->
             Curl.set_postfieldsize self size;
