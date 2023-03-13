@@ -13,7 +13,8 @@ clean:
 doc:
 	@dune build @doc
 
+WATCH?=@all
 watch:
-	@dune build @all -w
+	@dune build $(WATCH )-w
 
 .PHONY: all build test watch
