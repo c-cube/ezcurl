@@ -1,6 +1,7 @@
 
-(** {1 Core signatures and implementation} *)
+(** Core signatures and implementation *)
 
+(** Configuration for the client. *)
 module Config : sig
   type t
   val default : t
@@ -16,17 +17,21 @@ module Config : sig
 end
 
 type t = Curl.t
+(** A client, i.e. a cURL instance. *)
 
 val make :
   ?set_opts:(t -> unit) ->
   unit -> t
+  (** Create a new client.
+   @param set_opts called before returning the client, to set options *)
 
 val delete : t -> unit
+(** Delete the client. It cannot be used anymore. *)
 
 val with_client :
   ?set_opts:(t -> unit) ->
   (t -> 'a) -> 'a
-(** Make a temporary client, call the function with it, then cleanup *)
+(** Make a temporary client, call the function with it, then cleanup. *)
 
 (* TODO: duphandle is deprecated, how do we iterate on options?
 val copy : t -> t
@@ -34,18 +39,28 @@ val copy : t -> t
 
 type response_info = {
   ri_response_time: float;
+  (** Total time (in seconds) for the request/response pair.
+   See {!Curl.get_totaltime}. *)
   ri_redirect_count: int;
+  (** Number of redirects cURL followed.
+   See {!Curl.get_redirectcount}. *)
 }
+(** Metadata about a response from the server. *)
 
 val pp_response_info : Format.formatter -> response_info -> unit
 val string_of_response_info : response_info -> string
 
 type response = {
   code: int;
+  (** Response code. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status *)
   headers: (string * string) list;
+  (** Response headers *)
   body: string;
+  (** Response body, or [""] *)
   info: response_info;
+  (** Information about the response *)
 }
+(** Response for a given request. *)
 
 val pp_response : Format.formatter -> response -> unit
 val string_of_response : response -> string
