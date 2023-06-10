@@ -2,7 +2,7 @@
 all: build test
 
 build:
-	@dune build @all
+	@dune build @install
 
 test:
 	@dune runtest --no-buffer --force
@@ -13,7 +13,7 @@ clean:
 doc:
 	@dune build @doc
 
-WATCH?=@all
+WATCH?= @install @runtest
 watch:
 	@dune build $(WATCH )-w
 
