@@ -1,9 +1,9 @@
-
 (** Core signatures and implementation *)
 
 (** Configuration for the client. *)
 module Config : sig
   type t
+
   val default : t
   val verbose : bool -> t -> t
   val authmethod : Curl.curlAuth list -> t -> t
@@ -11,7 +11,6 @@ module Config : sig
   val follow_location : bool -> t -> t
   val username : string -> t -> t
   val password : string -> t -> t
-
   val pp : Format.formatter -> t -> unit
   val to_string : t -> string
 end
@@ -19,30 +18,26 @@ end
 type t = Curl.t
 (** A client, i.e. a cURL instance. *)
 
-val make :
-  ?set_opts:(t -> unit) ->
-  unit -> t
-  (** Create a new client.
+val make : ?set_opts:(t -> unit) -> unit -> t
+(** Create a new client.
    @param set_opts called before returning the client, to set options *)
 
 val delete : t -> unit
 (** Delete the client. It cannot be used anymore. *)
 
-val with_client :
-  ?set_opts:(t -> unit) ->
-  (t -> 'a) -> 'a
+val with_client : ?set_opts:(t -> unit) -> (t -> 'a) -> 'a
 (** Make a temporary client, call the function with it, then cleanup. *)
 
 (* TODO: duphandle is deprecated, how do we iterate on options?
-val copy : t -> t
-   *)
+   val copy : t -> t
+*)
 
 type response_info = {
   ri_response_time: float;
-  (** Total time (in seconds) for the request/response pair.
+      (** Total time (in seconds) for the request/response pair.
    See {!Curl.get_totaltime}. *)
   ri_redirect_count: int;
-  (** Number of redirects cURL followed.
+      (** Number of redirects cURL followed.
    See {!Curl.get_redirectcount}. *)
 }
 (** Metadata about a response from the server. *)
@@ -52,13 +47,10 @@ val string_of_response_info : response_info -> string
 
 type response = {
   code: int;
-  (** Response code. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status *)
-  headers: (string * string) list;
-  (** Response headers *)
-  body: string;
-  (** Response body, or [""] *)
-  info: response_info;
-  (** Information about the response *)
+      (** Response code. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status *)
+  headers: (string * string) list;  (** Response headers *)
+  body: string;  (** Response body, or [""] *)
+  info: response_info;  (** Information about the response *)
 }
 (** Response for a given request. *)
 
@@ -84,9 +76,10 @@ val string_of_meth : meth -> string
 (** {2 Underlying IO Monad} *)
 module type IO = sig
   type 'a t
+
   val return : 'a -> 'a t
-  val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
-  val (>|=) : 'a t -> ('a -> 'b) -> 'b t
+  val ( >>= ) : 'a t -> ('a -> 'b t) -> 'b t
+  val ( >|= ) : 'a t -> ('a -> 'b) -> 'b t
   val fail : exn -> 'a t
   val perform : Curl.t -> Curl.curlCode t
 end
@@ -100,8 +93,8 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
-    ?content:[`String of string | `Write of (bytes -> int -> int)] ->
-    ?headers:(string*string) list ->
+    ?content:[ `String of string | `Write of bytes -> int -> int ] ->
+    ?headers:(string * string) list ->
     url:string ->
     meth:meth ->
     unit ->
@@ -131,7 +124,7 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
-    ?headers:(string*string) list ->
+    ?headers:(string * string) list ->
     url:string ->
     unit ->
     (response, Curl.curlCode * string) result io
@@ -143,9 +136,9 @@ module type S = sig
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
-    ?headers:(string*string) list ->
+    ?headers:(string * string) list ->
     url:string ->
-    content:[`String of string | `Write of (bytes -> int -> int)] ->
+    content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
     (response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:PUT]
@@ -156,8 +149,8 @@ module type S = sig
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
-    ?headers:(string*string) list ->
-    ?content:[`String of string | `Write of (bytes -> int -> int)] ->
+    ?headers:(string * string) list ->
+    ?content:[ `String of string | `Write of bytes -> int -> int ] ->
     params:Curl.curlHTTPPost list ->
     url:string ->
     unit ->
@@ -167,4 +160,4 @@ module type S = sig
   *)
 end
 
-module Make(IO : IO) : S with type 'a io = 'a IO.t
+module Make (IO : IO) : S with type 'a io = 'a IO.t
