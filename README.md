@@ -12,7 +12,7 @@ A simple wrapper around OCurl, for easy tasks around http.
 ## Installation
 
 - for the synchronous library: `opam install ezcurl`
-- for the lwt-baed library: `opam install ezcurl-lwt` (depends on `ezcurl`)
+- for the lwt-based library: `opam install ezcurl-lwt` (depends on `ezcurl`)
 
 ## Usage
 
