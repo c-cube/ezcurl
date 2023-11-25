@@ -71,12 +71,19 @@ end
 type t = Curl.t
 
 let _init =
-  lazy
-    (Curl.global_init Curl.CURLINIT_GLOBALALL;
-     at_exit Curl.global_cleanup)
+  let initialized = ref false in
+  let mutex = Mutex.create () in
+  fun () ->
+    Mutex.lock mutex;
+    if not !initialized then (
+      initialized := true;
+      Curl.global_init Curl.CURLINIT_GLOBALALL;
+      at_exit Curl.global_cleanup
+    );
+    Mutex.unlock mutex
 
 let make ?(set_opts = fun _ -> ()) () : t =
-  Lazy.force _init;
+  _init ();
   let c = Curl.init () in
   Gc.finalise Curl.cleanup c;
   set_opts c;
