@@ -3,4 +3,4 @@
  (name ezcurl_core)
  (public_name ezcurl.core)
  (flags :standard -warn-error -32)
- (libraries curl))
+ (libraries curl threads))
