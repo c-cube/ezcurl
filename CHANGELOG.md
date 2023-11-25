@@ -1,3 +1,7 @@
+## 0.2.4
+
+- fix: global initialization logic is now hidden behind a mutex
+  * depend on `thread`
 
 ## 0.2.3
 
