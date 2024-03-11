@@ -159,22 +159,23 @@ let pp_response_info out r =
 
 let string_of_response_info s = Format.asprintf "%a" pp_response_info s
 
-type response = {
+type 'body response = {
   code: int;
   headers: (string * string) list;
-  body: string;
+  body: 'body;
   info: response_info;
 }
 
-let pp_response out r =
+let pp_response_with ppbody out r =
   let pp_header out (s1, s2) = Format.fprintf out "@[<2>%s:@ %s@]" s1 s2 in
   let pp_headers out l =
     Format.fprintf out "@[<v>%a@]" (Format.pp_print_list pp_header) l
   in
   let { code; body; headers; info } = r in
   Format.fprintf out "{@[code=%d;@ headers=@[%a@];@ info=%a;@ body=@[%a@]@]}"
-    code pp_headers headers pp_response_info info Format.pp_print_text body
+    code pp_headers headers pp_response_info info ppbody body
 
+let pp_response = pp_response_with Format.pp_print_text
 let string_of_response s = Format.asprintf "%a" pp_response s
 
 type meth =
@@ -224,7 +225,7 @@ module type S = sig
     url:string ->
     meth:meth ->
     unit ->
-    (response, Curl.curlCode * string) result io
+    (string response, Curl.curlCode * string) result io
   (** General purpose HTTP call via cURL.
       @param url the URL to query
       @param meth which method to use (see {!meth})
@@ -245,6 +246,27 @@ module type S = sig
       @param headers headers of the query
   *)
 
+  type stream = {
+    on_close: unit -> unit io;
+    on_chunk: string -> int -> int -> unit io;
+  }
+  (** Push-based stream of bytes
+      @since NEXT_RELEASE *)
+
+  val http_stream :
+    ?tries:int ->
+    ?client:t ->
+    ?config:Config.t ->
+    ?range:string ->
+    ?content:[ `String of string | `Write of bytes -> int -> int ] ->
+    ?headers:(string * string) list ->
+    url:string ->
+    meth:meth ->
+    unit ->
+    (stream response, Curl.curlCode * string) result io
+  (** HTTP call via cURL, with a streaming response body.
+      @since NEXT_RELEASE *)
+
   val get :
     ?tries:int ->
     ?client:t ->
@@ -253,7 +275,7 @@ module type S = sig
     ?headers:(string * string) list ->
     url:string ->
     unit ->
-    (response, Curl.curlCode * string) result io
+    (string response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:GET]
       See {!http} for more info.
   *)
@@ -266,7 +288,7 @@ module type S = sig
     url:string ->
     content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
-    (response, Curl.curlCode * string) result io
+    (string response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:PUT]
       See {!http} for more info.
   *)
@@ -280,7 +302,7 @@ module type S = sig
     params:Curl.curlHTTPPost list ->
     url:string ->
     unit ->
-    (response, Curl.curlCode * string) result io
+    (string response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:(POST params)]
       See {!http} for more info.
   *)
@@ -288,7 +310,7 @@ end
 
 exception Parse_error of Curl.curlCode * string
 
-let mk_res (self : t) headers body : (response, _) result =
+let mk_res (self : t) headers body : (_ response, _) result =
   let split_colon s =
     match String.index s ':' with
     | exception Not_found ->
@@ -340,8 +362,13 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     | `String s -> Some (String.length s)
     | `Write _ -> None
 
-  let http ?(tries = 1) ?client ?(config = Config.default) ?range ?content
-      ?(headers = []) ~url ~meth () : _ result io =
+  type stream = {
+    on_close: unit -> unit io;
+    on_chunk: string -> int -> int -> unit io;
+  }
+
+  let http_ ?(tries = 1) ?client ?(config = Config.default) ?range ?content
+      ?(headers = []) ~url ~meth () : (stream response, _) result io =
     let headers = ref headers in
     let do_cleanup, self =
       match client with
