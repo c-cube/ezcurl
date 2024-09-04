@@ -1,6 +1,6 @@
 
-(alias
- (name runtest)
+(rule
+ (alias runtest)
  (package ezcurl-lwt)
  (deps (:file README.md))
  (action
