@@ -68,7 +68,7 @@ module Config = struct
   let to_string s = Format.asprintf "%a" pp s
 end
 
-type t = Curl.t
+type t = { curl: Curl.t } [@@unboxed]
 
 let _init =
   let initialized = ref false in
@@ -82,14 +82,21 @@ let _init =
     );
     Mutex.unlock mutex
 
-let make ?(set_opts = fun _ -> ()) () : t =
+let make ?(set_opts = fun _ -> ()) ?cookiejar_file
+    ?(enable_session_cookies = false) () : t =
   _init ();
-  let c = Curl.init () in
-  Gc.finalise Curl.cleanup c;
-  set_opts c;
-  c
+  let curl = Curl.init () in
+  Gc.finalise Curl.cleanup curl;
+  opt_iter cookiejar_file ~f:(fun file ->
+      Curl.set_cookiejar curl file;
+      Curl.set_cookiefile curl file);
+  if enable_session_cookies then Curl.set_cookiefile curl "";
+  set_opts curl;
+  { curl }
 
-let delete = Curl.cleanup
+let delete (self : t) = Curl.cleanup self.curl
+let reload_cookiejar (self : t) : unit = Curl.set_cookielist self.curl "RELOAD"
+let flush_cookiejar (self : t) : unit = Curl.set_cookielist self.curl "FLUSH"
 
 (* set options *)
 let _apply_config (self : t) (config : Config.t) : unit =
@@ -104,18 +111,19 @@ let _apply_config (self : t) (config : Config.t) : unit =
   } =
     config
   in
-  Curl.set_verbose self verbose;
-  Curl.set_maxredirs self max_redirects;
-  Curl.set_followlocation self follow_location;
-  opt_iter user_agent ~f:(fun user_agent -> Curl.set_useragent self user_agent);
-  opt_iter authmethod ~f:(Curl.set_httpauth self);
-  opt_iter username ~f:(Curl.set_username self);
-  opt_iter password ~f:(Curl.set_password self);
+  Curl.set_verbose self.curl verbose;
+  Curl.set_maxredirs self.curl max_redirects;
+  Curl.set_followlocation self.curl follow_location;
+  opt_iter user_agent ~f:(fun user_agent ->
+      Curl.set_useragent self.curl user_agent);
+  opt_iter authmethod ~f:(Curl.set_httpauth self.curl);
+  opt_iter username ~f:(Curl.set_username self.curl);
+  opt_iter password ~f:(Curl.set_password self.curl);
   ()
 
 let _set_headers (self : t) (headers : _ list) : unit =
   let headers = List.map (fun (k, v) -> k ^ ": " ^ v) headers in
-  Curl.set_httpheader self headers;
+  Curl.set_httpheader self.curl headers;
   ()
 
 let with_client ?set_opts f =
@@ -280,7 +288,7 @@ let mk_res (self : t) headers body : (response, _) result =
         String.trim (String.sub s (i + 1) (String.length s - i - 1)) )
   in
   try
-    let code = Curl.get_httpcode self in
+    let code = Curl.get_httpcode self.curl in
     let headers =
       match headers with
       | [] -> []
@@ -289,8 +297,8 @@ let mk_res (self : t) headers body : (response, _) result =
     in
     let info =
       {
-        ri_redirect_count = Curl.get_redirectcount self;
-        ri_response_time = Curl.get_totaltime self;
+        ri_redirect_count = Curl.get_redirectcount self.curl;
+        ri_response_time = Curl.get_totaltime self.curl;
       }
     in
     Ok { headers; code; body; info }
@@ -330,18 +338,18 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
       | Some c -> false, c
     in
     _apply_config self config;
-    opt_iter range ~f:(fun s -> Curl.set_range self s);
+    opt_iter range ~f:(fun s -> Curl.set_range self.curl s);
 
     (* TODO: ability to make content a stream with a `read` function *)
     opt_iter content ~f:(fun content ->
-        Curl.set_readfunction self (content_read_fun_ content);
+        Curl.set_readfunction self.curl (content_read_fun_ content);
         (* also set size if known *)
         match content_size_ content, meth with
         | None, _ ->
           headers :=
             ("expect", "") :: ("transfer-encoding", "chunked") :: !headers
-        | Some size, POST _ -> Curl.set_postfieldsize self size
-        | Some size, _ -> Curl.set_infilesize self size);
+        | Some size, POST _ -> Curl.set_postfieldsize self.curl size
+        | Some size, _ -> Curl.set_infilesize self.curl size);
 
     (* local state *)
     let tries = max tries 1 in
@@ -350,23 +358,23 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     let resp_headers = ref [] in
     let resp_headers_done = ref false in
     (* once we get "\r\n" header line *)
-    Curl.set_url self url;
+    Curl.set_url self.curl url;
     (match meth with
-    | POST [] when content <> None -> Curl.set_post self true
-    | POST l -> Curl.set_httppost self l
-    | GET -> Curl.set_httpget self true
+    | POST [] when content <> None -> Curl.set_post self.curl true
+    | POST l -> Curl.set_httppost self.curl l
+    | GET -> Curl.set_httpget self.curl true
     | PUT ->
-      Curl.set_customrequest self "PUT";
-      Curl.set_upload self true
-    | DELETE -> Curl.set_customrequest self "DELETE"
-    | HEAD -> Curl.set_customrequest self "HEAD"
-    | CONNECT -> Curl.set_customrequest self "CONNECT"
-    | OPTIONS -> Curl.set_customrequest self "OPTIONS"
-    | TRACE -> Curl.set_customrequest self "TRACE"
-    | PATCH -> Curl.set_customrequest self "PATCH");
+      Curl.set_customrequest self.curl "PUT";
+      Curl.set_upload self.curl true
+    | DELETE -> Curl.set_customrequest self.curl "DELETE"
+    | HEAD -> Curl.set_customrequest self.curl "HEAD"
+    | CONNECT -> Curl.set_customrequest self.curl "CONNECT"
+    | OPTIONS -> Curl.set_customrequest self.curl "OPTIONS"
+    | TRACE -> Curl.set_customrequest self.curl "TRACE"
+    | PATCH -> Curl.set_customrequest self.curl "PATCH");
 
     _set_headers self !headers;
-    Curl.set_headerfunction self (fun s0 ->
+    Curl.set_headerfunction self.curl (fun s0 ->
         let s = String.trim s0 in
         (* Printf.printf "got header %S\n%!" s0; *)
         if s0 = "\r\n" then
@@ -381,18 +389,18 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
           resp_headers := s :: !resp_headers
         );
         String.length s0);
-    Curl.set_writefunction self (fun s ->
+    Curl.set_writefunction self.curl (fun s ->
         Buffer.add_string body s;
         String.length s);
     let rec loop i =
-      IO.perform self >>= function
+      IO.perform self.curl >>= function
       | Curl.CURLE_OK ->
         let r = mk_res self (List.rev !resp_headers) (Buffer.contents body) in
-        if do_cleanup then Curl.cleanup self;
+        if do_cleanup then Curl.cleanup self.curl;
         return r
       | Curl.CURLE_AGAIN when i > 1 -> loop (i - 1) (* try again *)
       | c ->
-        if do_cleanup then Curl.cleanup self;
+        if do_cleanup then Curl.cleanup self.curl;
         return (Error (c, Curl.strerror c))
     in
     loop tries

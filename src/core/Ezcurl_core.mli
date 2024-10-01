@@ -15,18 +15,37 @@ module Config : sig
   val to_string : t -> string
 end
 
-type t = Curl.t
-(** A client, i.e. a cURL instance. *)
+type t = private { curl: Curl.t } [@@unboxed]
+(** A client, i.e. a cURL instance.
+      The wrapping record has been present since NEXT_RELEASE *)
 
-val make : ?set_opts:(t -> unit) -> unit -> t
+val make :
+  ?set_opts:(Curl.t -> unit) ->
+  ?cookiejar_file:string ->
+  ?enable_session_cookies:bool ->
+  unit ->
+  t
 (** Create a new client.
-   @param set_opts called before returning the client, to set options *)
+   @param set_opts called before returning the client, to set options
+   @param cookiejar_file if provided, tell curl to use the given file path to store/load cookies (since NEXT_RELEASE)
+   @param enable_session_cookies if provided, enable cookie handling in curl so it store/load cookies (since NEXT_RELEASE)
+   *)
 
 val delete : t -> unit
 (** Delete the client. It cannot be used anymore. *)
 
-val with_client : ?set_opts:(t -> unit) -> (t -> 'a) -> 'a
+val with_client : ?set_opts:(Curl.t -> unit) -> (t -> 'a) -> 'a
 (** Make a temporary client, call the function with it, then cleanup. *)
+
+val flush_cookiejar : t -> unit
+(** If [cookiejar_file] was provided in {!make}, this flushes the current set of cookies
+    to the provided file.
+    @since NEXT_RELEASE *)
+
+val reload_cookiejar : t -> unit
+(** If [cookiejar_file] was provided in {!make}, this reloads cookies from
+    the provided file.
+    @since NEXT_RELEASE *)
 
 (* TODO: duphandle is deprecated, how do we iterate on options?
    val copy : t -> t
