@@ -37,15 +37,29 @@ val delete : t -> unit
 val with_client : ?set_opts:(Curl.t -> unit) -> (t -> 'a) -> 'a
 (** Make a temporary client, call the function with it, then cleanup. *)
 
-val flush_cookiejar : t -> unit
-(** If [cookiejar_file] was provided in {!make}, this flushes the current set of cookies
+(** Cookie handling.
+
+@since NEXT_RELEASE *)
+module Cookies : sig
+  val flush_cookiejar : t -> unit
+  (** If [cookiejar_file] was provided in {!make}, this flushes the current set of cookies
     to the provided file.
     @since NEXT_RELEASE *)
 
-val reload_cookiejar : t -> unit
-(** If [cookiejar_file] was provided in {!make}, this reloads cookies from
+  val reload_cookiejar : t -> unit
+  (** If [cookiejar_file] was provided in {!make}, this reloads cookies from
     the provided file.
     @since NEXT_RELEASE *)
+
+  val get_cookies : t -> string list
+  (** Get cookie list (in netscape format) *)
+
+  val set_cookies : t -> string list -> unit
+  (** Set cookie list (in netscape format) *)
+
+  val transfer : t -> t -> unit
+  (** [transfer c1 c2] copies cookies in [c1] into [c2] *)
+end
 
 (* TODO: duphandle is deprecated, how do we iterate on options?
    val copy : t -> t

@@ -95,8 +95,19 @@ let make ?(set_opts = fun _ -> ()) ?cookiejar_file
   { curl }
 
 let delete (self : t) = Curl.cleanup self.curl
-let reload_cookiejar (self : t) : unit = Curl.set_cookielist self.curl "RELOAD"
-let flush_cookiejar (self : t) : unit = Curl.set_cookielist self.curl "FLUSH"
+
+module Cookies = struct
+  let reload_cookiejar (self : t) : unit =
+    Curl.set_cookielist self.curl "RELOAD"
+
+  let flush_cookiejar (self : t) : unit = Curl.set_cookielist self.curl "FLUSH"
+  let get_cookies self = Curl.get_cookielist self.curl
+
+  let set_cookies self (l : string list) =
+    List.iter (Curl.set_cookielist self.curl) l
+
+  let transfer c1 c2 = set_cookies c2 @@ get_cookies c1
+end
 
 (* set options *)
 let _apply_config (self : t) (config : Config.t) : unit =
