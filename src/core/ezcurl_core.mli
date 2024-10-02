@@ -155,12 +155,12 @@ module type S = sig
       @param headers headers of the query
   *)
 
-  type stream = {
-    on_close: unit -> unit io;
-    on_chunk: string -> int -> int -> unit io;
-  }
   (** Push-based stream of bytes
       @since NEXT_RELEASE *)
+  class type input_stream = object
+    method on_close : unit -> unit
+    method on_input : bytes -> int -> int -> unit
+  end
 
   val http_stream :
     ?tries:int ->
@@ -171,9 +171,13 @@ module type S = sig
     ?headers:(string * string) list ->
     url:string ->
     meth:meth ->
+    write_into:#input_stream ->
     unit ->
-    (stream response, Curl.curlCode * string) result io
+    (unit response, Curl.curlCode * string) result io
   (** HTTP call via cURL, with a streaming response body.
+      The body is given to [write_into] by chunks,
+      then [write_into#on_close ()] is called
+      and the response is returned.
       @since NEXT_RELEASE *)
 
   val get :
