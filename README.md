@@ -33,7 +33,7 @@ val url : string = "https://curl.haxx.se/"
 # let res = Ezcurl.get ~url ();;
 ...
 # let content = match res with Ok c -> c | Error (_,s) -> failwith s;;
-val content : Ezcurl_core.response =
+val content : string Ezcurl_core.response =
 ...
 
 # content.Ezcurl.code;;
