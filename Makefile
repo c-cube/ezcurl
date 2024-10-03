@@ -7,6 +7,9 @@ build:
 test:
 	@dune runtest --no-buffer --force
 
+test-autopromote:
+	@dune runtest --no-buffer --force --auto-promote
+
 clean:
 	@dune clean
 

@@ -78,17 +78,20 @@ type response_info = {
 val pp_response_info : Format.formatter -> response_info -> unit
 val string_of_response_info : response_info -> string
 
-type response = {
+type 'body response = {
   code: int;
       (** Response code. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status *)
   headers: (string * string) list;  (** Response headers *)
-  body: string;  (** Response body, or [""] *)
+  body: 'body;  (** Response body, or [""] *)
   info: response_info;  (** Information about the response *)
 }
 (** Response for a given request. *)
 
-val pp_response : Format.formatter -> response -> unit
-val string_of_response : response -> string
+val pp_response_with :
+  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a response -> unit
+
+val pp_response : Format.formatter -> string response -> unit
+val string_of_response : string response -> string
 
 (** The {{: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods} HTTP method}
   to use *)
@@ -131,7 +134,7 @@ module type S = sig
     url:string ->
     meth:meth ->
     unit ->
-    (response, Curl.curlCode * string) result io
+    (string response, Curl.curlCode * string) result io
   (** General purpose HTTP call via cURL.
       @param url the URL to query
       @param meth which method to use (see {!meth})
@@ -152,6 +155,31 @@ module type S = sig
       @param headers headers of the query
   *)
 
+  (** Push-based stream of bytes
+      @since NEXT_RELEASE *)
+  class type input_stream = object
+    method on_close : unit -> unit
+    method on_input : bytes -> int -> int -> unit
+  end
+
+  val http_stream :
+    ?tries:int ->
+    ?client:t ->
+    ?config:Config.t ->
+    ?range:string ->
+    ?content:[ `String of string | `Write of bytes -> int -> int ] ->
+    ?headers:(string * string) list ->
+    url:string ->
+    meth:meth ->
+    write_into:#input_stream ->
+    unit ->
+    (unit response, Curl.curlCode * string) result io
+  (** HTTP call via cURL, with a streaming response body.
+      The body is given to [write_into] by chunks,
+      then [write_into#on_close ()] is called
+      and the response is returned.
+      @since NEXT_RELEASE *)
+
   val get :
     ?tries:int ->
     ?client:t ->
@@ -160,7 +188,7 @@ module type S = sig
     ?headers:(string * string) list ->
     url:string ->
     unit ->
-    (response, Curl.curlCode * string) result io
+    (string response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:GET]
       See {!http} for more info.
   *)
@@ -173,7 +201,7 @@ module type S = sig
     url:string ->
     content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
-    (response, Curl.curlCode * string) result io
+    (string response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:PUT]
       See {!http} for more info.
   *)
@@ -187,7 +215,7 @@ module type S = sig
     params:Curl.curlHTTPPost list ->
     url:string ->
     unit ->
-    (response, Curl.curlCode * string) result io
+    (string response, Curl.curlCode * string) result io
   (** Shortcut for [http ~meth:(POST params)]
       See {!http} for more info.
   *)
