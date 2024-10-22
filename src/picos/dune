@@ -1,0 +1,12 @@
+(library
+ (name ezcurl_picos)
+ (public_name ezcurl-picos)
+ (flags :standard -warn-error -32)
+ (libraries
+  curl
+  ezcurl.core
+  picos
+  picos_std.sync
+  picos_std.event
+  picos_io.select
+  picos_io))

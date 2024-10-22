@@ -39,3 +39,20 @@
   (odoc :with-doc)
   (ocaml
    (>= 4.03))))
+
+(package
+ (name ezcurl-picos)
+ (synopsis "Friendly wrapper around OCurl, using picos")
+ (tags
+  ("curl" "web" "http" "client" "lwt"))
+ (depends
+  (ezcurl
+   (= :version))
+  (picos (and (>= 0.5) (< 0.6)))
+  (picos_std (and (>= 0.5) (< 0.6)))
+  (picos_io (and (>= 0.5) (< 0.6)))
+  (picos_mux (and (>= 0.5) (< 0.6) :with-test))
+  (mdx :with-test)
+  (odoc :with-doc)
+  (ocaml
+   (>= 4.03))))

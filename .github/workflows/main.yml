@@ -16,8 +16,9 @@ jobs:
           # - macos-latest    # build issues with `ar` (!!!)
           #- windows-latest   # certificate problem
         ocaml-compiler:
-          - 4.03.x
+          - 4.08.x
           - 4.12.x
+          - 5.2.x
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
