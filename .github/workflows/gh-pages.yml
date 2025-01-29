@@ -18,9 +18,9 @@ jobs:
           path: ~/.opam
           key: opam-ubuntu-latest-4.12.0
 
-      - uses: ocaml/setup-ocaml@v2
+      - uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: '5.0.x'
+          ocaml-compiler: '5.03'
 
       - name: Pin
         run: opam pin -n .
