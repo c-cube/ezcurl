@@ -97,6 +97,21 @@ let make ?(set_opts = fun _ -> ()) ?cookiejar_file
 
 let delete (self : t) = Curl.cleanup self.curl
 
+let _cfg_mutex = Mutex.create ()
+let _cfg_no_signal = ref None
+
+let _get_no_signal () =
+  Mutex.lock _cfg_mutex;
+  let v = !_cfg_no_signal in
+  Mutex.unlock _cfg_mutex;
+  v
+
+let set_no_signal v =
+  Mutex.lock _cfg_mutex;
+  _cfg_no_signal := Some v;
+  Mutex.unlock _cfg_mutex;
+  ()
+
 module Cookies = struct
   let reload_cookiejar (self : t) : unit =
     Curl.set_cookielist self.curl "RELOAD"
@@ -131,6 +146,7 @@ let _apply_config (self : t) (config : Config.t) : unit =
   opt_iter authmethod ~f:(Curl.set_httpauth self.curl);
   opt_iter username ~f:(Curl.set_username self.curl);
   opt_iter password ~f:(Curl.set_password self.curl);
+  opt_iter (_get_no_signal ()) ~f:(Curl.set_nosignal self);
   ()
 
 let _set_headers (self : t) (headers : _ list) : unit =
