@@ -38,7 +38,9 @@ val with_client : ?set_opts:(Curl.t -> unit) -> (t -> 'a) -> 'a
 (** Make a temporary client, call the function with it, then cleanup. *)
 
 val set_no_signal : bool -> unit
-(** Set no_signal default value for each new client instance *)
+(** Set no_signal default value for each new client instance. Default is [true].
+    See [CURLOPT_NOSIGNAL].
+    @since NEXT_RELEASE *)
 
 (** Cookie handling.
 

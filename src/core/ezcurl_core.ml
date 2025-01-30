@@ -71,17 +71,27 @@ end
 type t = { curl: Curl.t } [@@unboxed]
 type client = t
 
+let _top_mutex = Mutex.create ()
+
+let _with_mutex f =
+  Mutex.lock _top_mutex;
+  match f () with
+  | res ->
+    Mutex.unlock _top_mutex;
+    res
+  | exception e ->
+    Mutex.unlock _top_mutex;
+    raise e
+
 let _init =
   let initialized = ref false in
-  let mutex = Mutex.create () in
   fun () ->
-    Mutex.lock mutex;
+    _with_mutex @@ fun () ->
     if not !initialized then (
       initialized := true;
       Curl.global_init Curl.CURLINIT_GLOBALALL;
       at_exit Curl.global_cleanup
-    );
-    Mutex.unlock mutex
+    )
 
 let make ?(set_opts = fun _ -> ()) ?cookiejar_file
     ?(enable_session_cookies = false) () : t =
@@ -96,21 +106,9 @@ let make ?(set_opts = fun _ -> ()) ?cookiejar_file
   { curl }
 
 let delete (self : t) = Curl.cleanup self.curl
-
-let _cfg_mutex = Mutex.create ()
-let _cfg_no_signal = ref None
-
-let _get_no_signal () =
-  Mutex.lock _cfg_mutex;
-  let v = !_cfg_no_signal in
-  Mutex.unlock _cfg_mutex;
-  v
-
-let set_no_signal v =
-  Mutex.lock _cfg_mutex;
-  _cfg_no_signal := Some v;
-  Mutex.unlock _cfg_mutex;
-  ()
+let _cfg_no_signal = ref false (* default: 0 *)
+let _get_no_signal () : bool = _with_mutex @@ fun () -> !_cfg_no_signal
+let set_no_signal v = _with_mutex @@ fun () -> _cfg_no_signal := v
 
 module Cookies = struct
   let reload_cookiejar (self : t) : unit =
@@ -146,7 +144,7 @@ let _apply_config (self : t) (config : Config.t) : unit =
   opt_iter authmethod ~f:(Curl.set_httpauth self.curl);
   opt_iter username ~f:(Curl.set_username self.curl);
   opt_iter password ~f:(Curl.set_password self.curl);
-  opt_iter (_get_no_signal ()) ~f:(Curl.set_nosignal self);
+  Curl.set_nosignal self.curl (_get_no_signal ());
   ()
 
 let _set_headers (self : t) (headers : _ list) : unit =
