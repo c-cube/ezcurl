@@ -148,28 +148,16 @@ let _apply_config (self : t) (config : Config.t) : unit =
 
 let _eq_case a b =
   let low = String.lowercase_ascii in
-  String.compare (low a) (low b) = 0
+  String.equal (low a) (low b)
 
 let _add_header_nodup (h : string * string) (headers : _ list ref) : unit =
   let sq = List.to_seq !headers in
   let k, v = h in
-  match
-    Seq.find_index
-      (fun t ->
-        let tk, tv = t in
-        _eq_case k tk && _eq_case v tv)
-      sq
-  with
-  | None ->
+  if not (List.exists (fun (tk,tv) -> _eq_case k tk && _eq_case v tv) !headers) then
     headers := h :: !headers;
-    ()
-  | Some _ -> () (* No duplicate *)
 
 let _contains_resp_headers (h : string) (headers : string list) : bool =
-  let sq = List.to_seq headers in
-  match Seq.find_index (fun hh -> _eq_case h hh) sq with
-  | None -> false
-  | Some _ -> true
+  List.exists (_eq_case h) headers
 
 let _set_headers (self : t) (headers : _ list) : unit =
   let headers = List.map (fun (k, v) -> k ^ ": " ^ v) headers in
@@ -398,12 +386,9 @@ let mk_res (self : t) headers body : (_ response, _) result =
 
 let sse_frame_with_event sse_f v =
   {
+    (!sse_f) with
     event = Some v;
-    id = !sse_f.id;
-    data = !sse_f.data;
-    retry = !sse_f.retry;
-    empties = !sse_f.empties;
-  }
+    }
 
 let sse_frame_with_id sse_f v =
   {
