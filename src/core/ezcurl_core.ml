@@ -330,33 +330,6 @@ end
 
 exception Parse_error of curl_error
 
-let mk_res (self : t) headers body : (_ response, _) result =
-  let split_colon s =
-    match String.index s ':' with
-    | exception Not_found ->
-      raise
-        (Parse_error (Curl.CURLE_CONV_FAILED, "header line without a ':': " ^ s))
-    | i ->
-      ( String.sub s 0 i,
-        String.trim (String.sub s (i + 1) (String.length s - i - 1)) )
-  in
-  try
-    let code = Curl.get_httpcode self.curl in
-    let headers =
-      match headers with
-      | [] -> []
-      | _ :: tl ->
-        List.map split_colon tl (* first one is "http1.1 NNN <descr>" *)
-    in
-    let info =
-      {
-        ri_redirect_count = Curl.get_redirectcount self.curl;
-        ri_response_time = Curl.get_totaltime self.curl;
-      }
-    in
-    Ok { headers; code; body; info }
-  with Parse_error (e, msg) -> Error (e, Curl.strerror e ^ ": " ^ msg)
-
 module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
   open IO
 
@@ -393,6 +366,34 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     mutable resp_headers: string list;
     mutable resp_headers_done: bool;
   }
+
+  let mk_res (self : http_state_) body : (_ response, _) result =
+    let headers = List.rev self.resp_headers in
+    let split_colon s =
+      match String.index s ':' with
+      | exception Not_found ->
+        raise
+          (Parse_error (Curl.CURLE_CONV_FAILED, "header line without a ':': " ^ s))
+      | i ->
+        ( String.sub s 0 i,
+          String.trim (String.sub s (i + 1) (String.length s - i - 1)) )
+    in
+    try
+      let code = Curl.get_httpcode self.client.curl in
+      let headers =
+        match headers with
+        | [] -> []
+        | _ :: tl ->
+          List.map split_colon tl (* first one is "http1.1 NNN <descr>" *)
+      in
+      let info =
+        {
+          ri_redirect_count = Curl.get_redirectcount self.client.curl;
+          ri_response_time = Curl.get_totaltime self.client.curl;
+        }
+      in
+      Ok { headers; code; body; info }
+    with Parse_error (e, msg) -> Error (e, Curl.strerror e ^ ": " ^ msg)
 
   let http_setup_ ?client ?(config = Config.default) ?range ?content
       ?(headers = []) ~url ~meth () : http_state_ =
@@ -477,9 +478,7 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     let rec loop i =
       IO.perform st.client.curl >>= function
       | Curl.CURLE_OK ->
-        let r =
-          mk_res st.client (List.rev st.resp_headers) (Buffer.contents body)
-        in
+        let r = mk_res st (Buffer.contents body) in
         if st.do_cleanup then Curl.cleanup st.client.curl;
         return r
       | Curl.CURLE_AGAIN when i > 1 -> loop (i - 1) (* try again *)
@@ -504,7 +503,7 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     let rec loop i =
       IO.perform st.client.curl >>= function
       | Curl.CURLE_OK ->
-        let r = mk_res st.client (List.rev st.resp_headers) () in
+        let r = mk_res st () in
         write_into#on_close ();
         if st.do_cleanup then Curl.cleanup st.client.curl;
         return r
