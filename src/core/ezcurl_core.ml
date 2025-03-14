@@ -162,6 +162,10 @@ let with_client ?set_opts f =
     delete c;
     raise e
 
+type curl_error = Curl.curlCode * string
+
+type header = string * string
+
 type response_info = {
   ri_response_time: float;
   ri_redirect_count: int;
@@ -176,7 +180,7 @@ let string_of_response_info s = Format.asprintf "%a" pp_response_info s
 
 type 'body response = {
   code: int;
-  headers: (string * string) list;
+  headers: header list;
   body: 'body;
   info: response_info;
 }
@@ -236,11 +240,11 @@ module type S = sig
     ?config:Config.t ->
     ?range:string ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     meth:meth ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** General purpose HTTP call via cURL.
       @param url the URL to query
       @param meth which method to use (see {!meth})
@@ -274,12 +278,12 @@ module type S = sig
     ?config:Config.t ->
     ?range:string ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     meth:meth ->
     write_into:#input_stream ->
     unit ->
-    (unit response, Curl.curlCode * string) result io
+    (unit response, curl_error) result io
   (** HTTP call via cURL, with a streaming response body.
       @since NEXT_RELEASE *)
 
@@ -288,10 +292,10 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:GET]
       See {!http} for more info.
   *)
@@ -300,11 +304,11 @@ module type S = sig
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:PUT]
       See {!http} for more info.
   *)
@@ -313,18 +317,18 @@ module type S = sig
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
     params:Curl.curlHTTPPost list ->
     url:string ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:(POST params)]
       See {!http} for more info.
   *)
 end
 
-exception Parse_error of Curl.curlCode * string
+exception Parse_error of curl_error
 
 let mk_res (self : t) headers body : (_ response, _) result =
   let split_colon s =
