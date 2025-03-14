@@ -164,13 +164,6 @@ module type S = sig
       @param headers headers of the query
   *)
 
-  (** Push-based stream of bytes
-      @since NEXT_RELEASE *)
-  class type input_stream = object
-    method on_close : unit -> unit
-    method on_input : bytes -> int -> int -> unit
-  end
-
   val http_stream :
     ?tries:int ->
     ?client:t ->
@@ -180,13 +173,19 @@ module type S = sig
     ?headers:header list ->
     url:string ->
     meth:meth ->
-    write_into:#input_stream ->
-    unit ->
-    (unit response, curl_error) result io
+    ?on_respond:((unit response, curl_error) result -> unit) ->
+    on_write:(bytes -> length:int -> unit) ->
+    ?on_close:(unit -> unit) ->
+    ?on_progress:(downloaded:int64 ->
+                  expected:int64 option -> [ `Abort | `Continue ]) ->
+    unit -> (unit response, curl_error) result io
   (** HTTP call via cURL, with a streaming response body.
-      The body is given to [write_into] by chunks,
-      then [write_into#on_close ()] is called
-      and the response is returned.
+      [on_respond] is called as soon as the response code and headers are
+      available. If the call failed, the response code will be zero.
+      Then the body is given to [on_write] by chunks, and, finally [on_close ()]
+      is called and the response is returned.
+      [on_progress] is regularly called to give the opportunity to track the
+      progress of a large or slow transfer and to abort it.
       @since NEXT_RELEASE *)
 
   val get :

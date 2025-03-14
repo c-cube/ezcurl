@@ -15,11 +15,7 @@ let () =
   let buf = Buffer.create 32 in
   match
     Ezcurl.http_stream ~meth:GET ~url
-      ~write_into:
-        (object
-           method on_input bs i len = Buffer.add_subbytes buf bs i len
-           method on_close () = ()
-        end)
+      ~on_write:(fun bs ~length -> Buffer.add_subbytes buf bs 0 length)
       ()
   with
   | Error (code, msg) ->
