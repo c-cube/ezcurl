@@ -162,6 +162,10 @@ let with_client ?set_opts f =
     delete c;
     raise e
 
+type curl_error = Curl.curlCode * string
+
+type header = string * string
+
 type response_info = {
   ri_response_time: float;
   ri_redirect_count: int;
@@ -176,7 +180,7 @@ let string_of_response_info s = Format.asprintf "%a" pp_response_info s
 
 type 'body response = {
   code: int;
-  headers: (string * string) list;
+  headers: header list;
   body: 'body;
   info: response_info;
 }
@@ -236,11 +240,11 @@ module type S = sig
     ?config:Config.t ->
     ?range:string ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     meth:meth ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** General purpose HTTP call via cURL.
       @param url the URL to query
       @param meth which method to use (see {!meth})
@@ -261,25 +265,21 @@ module type S = sig
       @param headers headers of the query
   *)
 
-  (** Push-stream of bytes
-      @since NEXT_RELEASE *)
-  class type input_stream = object
-    method on_close : unit -> unit
-    method on_input : bytes -> int -> int -> unit
-  end
-
   val http_stream :
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     meth:meth ->
-    write_into:#input_stream ->
+    ?on_respond:((unit response, curl_error) result -> unit) ->
+    on_write:(bytes -> length:int -> unit) ->
+    ?on_close:(unit -> unit) ->
+    ?on_progress:(downloaded:int64 -> expected:int64 option -> [`Continue | `Abort]) ->
     unit ->
-    (unit response, Curl.curlCode * string) result io
+    (unit response, curl_error) result io
   (** HTTP call via cURL, with a streaming response body.
       @since NEXT_RELEASE *)
 
@@ -288,10 +288,10 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:GET]
       See {!http} for more info.
   *)
@@ -300,11 +300,11 @@ module type S = sig
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:PUT]
       See {!http} for more info.
   *)
@@ -313,45 +313,18 @@ module type S = sig
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
     params:Curl.curlHTTPPost list ->
     url:string ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:(POST params)]
       See {!http} for more info.
   *)
 end
 
-exception Parse_error of Curl.curlCode * string
-
-let mk_res (self : t) headers body : (_ response, _) result =
-  let split_colon s =
-    match String.index s ':' with
-    | exception Not_found ->
-      raise
-        (Parse_error (Curl.CURLE_CONV_FAILED, "header line without a ':': " ^ s))
-    | i ->
-      ( String.sub s 0 i,
-        String.trim (String.sub s (i + 1) (String.length s - i - 1)) )
-  in
-  try
-    let code = Curl.get_httpcode self.curl in
-    let headers =
-      match headers with
-      | [] -> []
-      | _ :: tl ->
-        List.map split_colon tl (* first one is "http1.1 NNN <descr>" *)
-    in
-    let info =
-      {
-        ri_redirect_count = Curl.get_redirectcount self.curl;
-        ri_response_time = Curl.get_totaltime self.curl;
-      }
-    in
-    Ok { headers; code; body; info }
-  with Parse_error (e, msg) -> Error (e, Curl.strerror e ^ ": " ^ msg)
+exception Parse_error of curl_error
 
 module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
   open IO
@@ -378,17 +351,40 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     | `String s -> Some (String.length s)
     | `Write _ -> None
 
-  class type input_stream = object
-    method on_close : unit -> unit
-    method on_input : bytes -> int -> int -> unit
-  end
-
   type http_state_ = {
     client: client;
     do_cleanup: bool;
     mutable resp_headers: string list;
     mutable resp_headers_done: bool;
   }
+
+  let mk_res (self : http_state_) body : (_ response, _) result =
+    let headers = List.rev self.resp_headers in
+    let split_colon s =
+      match String.index s ':' with
+      | exception Not_found ->
+        raise
+          (Parse_error (Curl.CURLE_CONV_FAILED, "header line without a ':': " ^ s))
+      | i ->
+        ( String.sub s 0 i,
+          String.trim (String.sub s (i + 1) (String.length s - i - 1)) )
+    in
+    try
+      let code = Curl.get_httpcode self.client.curl in
+      let headers =
+        match headers with
+        | [] -> []
+        | _ :: tl ->
+          List.map split_colon tl (* first one is "http1.1 NNN <descr>" *)
+      in
+      let info =
+        {
+          ri_redirect_count = Curl.get_redirectcount self.client.curl;
+          ri_response_time = Curl.get_totaltime self.client.curl;
+        }
+      in
+      Ok { headers; code; body; info }
+    with Parse_error (e, msg) -> Error (e, Curl.strerror e ^ ": " ^ msg)
 
   let http_setup_ ?client ?(config = Config.default) ?range ?content
       ?(headers = []) ~url ~meth () : http_state_ =
@@ -473,9 +469,7 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     let rec loop i =
       IO.perform st.client.curl >>= function
       | Curl.CURLE_OK ->
-        let r =
-          mk_res st.client (List.rev st.resp_headers) (Buffer.contents body)
-        in
+        let r = mk_res st (Buffer.contents body) in
         if st.do_cleanup then Curl.cleanup st.client.curl;
         return r
       | Curl.CURLE_AGAIN when i > 1 -> loop (i - 1) (* try again *)
@@ -486,27 +480,56 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     loop tries
 
   let http_stream ?(tries = 1) ?client ?config ?range ?content ?headers ~url
-      ~meth ~(write_into : #input_stream) () : (unit response, _) result io =
+      ~meth ?(on_respond=ignore) ~on_write ?(on_close=ignore) ?on_progress ()
+    : (unit response, _) result io =
     let tries = max tries 1 in
     let st =
       http_setup_ ?client ?config ?range ?content ?headers ~url ~meth ()
     in
 
+    let responded = ref false in
+    let respond () =
+      if not !responded then (
+        responded := true;
+        on_respond (mk_res st ())
+      )
+    in
+
     Curl.set_writefunction st.client.curl (fun s ->
-        let n = String.length s in
-        write_into#on_input (Bytes.unsafe_of_string s) 0 n;
-        n);
+        respond ();
+        let length = String.length s in
+        on_write (Bytes.unsafe_of_string s) ~length;
+        length);
+
+    opt_iter on_progress ~f:(fun on_progress ->
+        Curl.set_xferinfofunction st.client.curl
+          (fun dltotal dlnow _ultotal _ulnow ->
+             match
+               on_progress
+                 ~downloaded:dlnow
+                 ~expected:(if dltotal = 0L then None else Some dltotal)
+             with
+             | `Continue -> false
+             | `Abort -> true
+          );
+        Curl.set_noprogress st.client.curl false;
+      );
 
     let rec loop i =
       IO.perform st.client.curl >>= function
       | Curl.CURLE_OK ->
-        let r = mk_res st.client (List.rev st.resp_headers) () in
-        write_into#on_close ();
+        let r = mk_res st () in
+        if not !responded then (
+          responded := true;
+          on_respond r;
+        );
+        on_close ();
         if st.do_cleanup then Curl.cleanup st.client.curl;
         return r
       | Curl.CURLE_AGAIN when i > 1 -> loop (i - 1) (* try again *)
       | c ->
-        write_into#on_close ();
+        respond ();
+        on_close ();
         if st.do_cleanup then Curl.cleanup st.client.curl;
         return (Error (c, Curl.strerror c))
     in

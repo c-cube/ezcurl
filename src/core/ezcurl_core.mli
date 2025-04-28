@@ -70,6 +70,10 @@ end
    val copy : t -> t
 *)
 
+type curl_error = Curl.curlCode * string
+
+type header = string * string
+
 type response_info = {
   ri_response_time: float;
       (** Total time (in seconds) for the request/response pair.
@@ -86,7 +90,7 @@ val string_of_response_info : response_info -> string
 type 'body response = {
   code: int;
       (** Response code. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status *)
-  headers: (string * string) list;  (** Response headers *)
+  headers: header list;  (** Response headers *)
   body: 'body;  (** Response body, or [""] *)
   info: response_info;  (** Information about the response *)
 }
@@ -135,11 +139,11 @@ module type S = sig
     ?config:Config.t ->
     ?range:string ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     meth:meth ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** General purpose HTTP call via cURL.
       @param url the URL to query
       @param meth which method to use (see {!meth})
@@ -160,29 +164,28 @@ module type S = sig
       @param headers headers of the query
   *)
 
-  (** Push-based stream of bytes
-      @since NEXT_RELEASE *)
-  class type input_stream = object
-    method on_close : unit -> unit
-    method on_input : bytes -> int -> int -> unit
-  end
-
   val http_stream :
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     meth:meth ->
-    write_into:#input_stream ->
-    unit ->
-    (unit response, Curl.curlCode * string) result io
+    ?on_respond:((unit response, curl_error) result -> unit) ->
+    on_write:(bytes -> length:int -> unit) ->
+    ?on_close:(unit -> unit) ->
+    ?on_progress:(downloaded:int64 ->
+                  expected:int64 option -> [ `Abort | `Continue ]) ->
+    unit -> (unit response, curl_error) result io
   (** HTTP call via cURL, with a streaming response body.
-      The body is given to [write_into] by chunks,
-      then [write_into#on_close ()] is called
-      and the response is returned.
+      [on_respond] is called as soon as the response code and headers are
+      available. If the call failed, the response code will be zero.
+      Then the body is given to [on_write] by chunks, and, finally [on_close ()]
+      is called and the response is returned.
+      [on_progress] is regularly called to give the opportunity to track the
+      progress of a large or slow transfer and to abort it.
       @since NEXT_RELEASE *)
 
   val get :
@@ -190,10 +193,10 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?range:string ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:GET]
       See {!http} for more info.
   *)
@@ -202,11 +205,11 @@ module type S = sig
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     url:string ->
     content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:PUT]
       See {!http} for more info.
   *)
@@ -215,12 +218,12 @@ module type S = sig
     ?tries:int ->
     ?client:t ->
     ?config:Config.t ->
-    ?headers:(string * string) list ->
+    ?headers:header list ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
     params:Curl.curlHTTPPost list ->
     url:string ->
     unit ->
-    (string response, Curl.curlCode * string) result io
+    (string response, curl_error) result io
   (** Shortcut for [http ~meth:(POST params)]
       See {!http} for more info.
   *)
