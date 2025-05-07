@@ -114,6 +114,20 @@ type meth =
 val pp_meth : Format.formatter -> meth -> unit
 val string_of_meth : meth -> string
 
+type sse_frame = {
+  event: string option;
+  id: string option;
+  data: string option;
+  retry: int option;
+  empties: string list; (* Lines without a ':' *)
+}
+
+type sse_state =
+  | Frame of sse_frame
+  | End_of_stream
+
+type sse_callback = sse_state -> bool
+
 (** {2 Underlying IO Monad} *)
 module type IO = sig
   type 'a t
@@ -136,6 +150,7 @@ module type S = sig
     ?range:string ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
     ?headers:(string * string) list ->
+    ?callback:[ `Sse_event of sse_callback ] ->
     url:string ->
     meth:meth ->
     unit ->
@@ -158,6 +173,12 @@ module type S = sig
         It must return [0] when the content is entirely written, and not
         before.
       @param headers headers of the query
+      @param callback callback to use on received body, either
+        a [None] to keep normal Curl write behavior, or [`Sse_event f]
+        to enable {{: https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events}
+        Server-sent events } processing, where [f] is a callback type [sse_callback]
+        and returns boolean to indicate if the internal write callback can
+        continue to proceed process or else close the incoming infinite stream.
   *)
 
   (** Push-based stream of bytes
@@ -174,6 +195,7 @@ module type S = sig
     ?range:string ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
     ?headers:(string * string) list ->
+    ?callback:[ `Sse_event of sse_callback ] ->
     url:string ->
     meth:meth ->
     write_into:#input_stream ->
@@ -191,6 +213,7 @@ module type S = sig
     ?config:Config.t ->
     ?range:string ->
     ?headers:(string * string) list ->
+    ?callback:[ `Sse_event of sse_callback ] ->
     url:string ->
     unit ->
     (string response, Curl.curlCode * string) result io
@@ -203,6 +226,7 @@ module type S = sig
     ?client:t ->
     ?config:Config.t ->
     ?headers:(string * string) list ->
+    ?callback:[ `Sse_event of sse_callback ] ->
     url:string ->
     content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
@@ -217,6 +241,7 @@ module type S = sig
     ?config:Config.t ->
     ?headers:(string * string) list ->
     ?content:[ `String of string | `Write of bytes -> int -> int ] ->
+    ?callback:[ `Sse_event of sse_callback ] ->
     params:Curl.curlHTTPPost list ->
     url:string ->
     unit ->
