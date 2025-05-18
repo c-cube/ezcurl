@@ -1,6 +1,6 @@
 # EZCurl [![build](https://github.com/c-cube/ezcurl/actions/workflows/main.yml/badge.svg)](https://github.com/c-cube/ezcurl/actions/workflows/main.yml)
 
-A simple wrapper around OCurl, for easy tasks around http.
+A simple wrapper around [OCurl](https://github.com/ygrek/ocurl/), for easy tasks around http.
 
 **project goals**
 
