@@ -358,21 +358,32 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
 
   type 'a io = 'a IO.t
 
-  let content_read_fun_ content =
+  let content_read_funs_ content =
     match content with
     | `String s ->
       let n = ref 0 in
-      fun i ->
+      let read i =
         let len = min i (String.length s - !n) in
         let r = String.sub s !n len in
         n := !n + len;
         r
+      and seek i o =
+        begin match o with
+        | Curl.SEEK_SET -> n := Int64.to_int i
+        | SEEK_END -> n := String.length s + Int64.to_int i
+        | SEEK_CUR -> n := !n + Int64.to_int i
+        end;
+        Curl.SEEKFUNC_OK
+      in read, seek
     | `Write f ->
       let buf = Bytes.create 1024 in
-      fun i ->
+      let read i =
         let len = min i (Bytes.length buf) in
         let n = f buf len in
         Bytes.sub_string buf i n
+      and seek _ _ =
+        Curl.SEEKFUNC_CANTSEEK
+      in read, seek
 
   let content_size_ = function
     | `String s -> Some (String.length s)
@@ -403,7 +414,9 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
 
     (* TODO: ability to make content a stream with a `read` function *)
     opt_iter content ~f:(fun content ->
-        Curl.set_readfunction self.curl (content_read_fun_ content);
+        let read, seek = content_read_funs_ content in
+        Curl.set_readfunction self.curl read;
+        Curl.set_seekfunction self.curl seek;
         (* also set size if known *)
         match content_size_ content, meth with
         | None, _ ->
