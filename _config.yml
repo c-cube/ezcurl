@@ -1,5 +1,0 @@
-theme: jekyll-theme-minimal
-include:
-  - _odoc_support
-  - 0.2/_odoc_support
-  - dev/_odoc_support
