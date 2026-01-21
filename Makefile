@@ -13,6 +13,12 @@ test-autopromote:
 clean:
 	@dune clean
 
+format:
+	@dune build $(DUNE_OPTS) @fmt --auto-promote
+
+format-check:
+	@dune build $(DUNE_OPTS) @fmt --display=quiet
+
 doc:
 	@dune build @doc
 
