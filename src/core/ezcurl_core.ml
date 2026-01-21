@@ -246,20 +246,19 @@ module type S = sig
       @param meth which method to use (see {!meth})
       @param tries how many times to retry in case of [CURLE_AGAIN] code
       @param client a client to reuse (instead of allocating a new one)
-      @param range an optional
-      {{: https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests} byte range}
-      to fetch (either to get large pages
-        by chunks, or to resume an interrupted download).
+      @param range
+        an optional
+        {{:https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests}
+         byte range} to fetch (either to get large pages by chunks, or to resume
+        an interrupted download).
       @param config configuration to set
-      @param content the content to send as the query's body, either
-        a [`String s] to write a single string, or [`Write f]
-        where [f] is a callback that is called on a buffer [b] with len [n]
-        (as in [f b n]) and returns how many bytes it wrote in the buffer
-        [b] starting at index [0] (at most [n] bytes).
-        It must return [0] when the content is entirely written, and not
-        before.
-      @param headers headers of the query
-  *)
+      @param content
+        the content to send as the query's body, either a [`String s] to write a
+        single string, or [`Write f] where [f] is a callback that is called on a
+        buffer [b] with len [n] (as in [f b n]) and returns how many bytes it
+        wrote in the buffer [b] starting at index [0] (at most [n] bytes). It
+        must return [0] when the content is entirely written, and not before.
+      @param headers headers of the query *)
 
   (** Push-stream of bytes
       @since NEXT_RELEASE *)
@@ -292,9 +291,7 @@ module type S = sig
     url:string ->
     unit ->
     (string response, Curl.curlCode * string) result io
-  (** Shortcut for [http ~meth:GET]
-      See {!http} for more info.
-  *)
+  (** Shortcut for [http ~meth:GET] See {!http} for more info. *)
 
   val put :
     ?tries:int ->
@@ -305,9 +302,7 @@ module type S = sig
     content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
     (string response, Curl.curlCode * string) result io
-  (** Shortcut for [http ~meth:PUT]
-      See {!http} for more info.
-  *)
+  (** Shortcut for [http ~meth:PUT] See {!http} for more info. *)
 
   val post :
     ?tries:int ->
@@ -319,9 +314,7 @@ module type S = sig
     url:string ->
     unit ->
     (string response, Curl.curlCode * string) result io
-  (** Shortcut for [http ~meth:(POST params)]
-      See {!http} for more info.
-  *)
+  (** Shortcut for [http ~meth:(POST params)] See {!http} for more info. *)
 end
 
 exception Parse_error of Curl.curlCode * string
@@ -368,22 +361,21 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
         n := !n + len;
         r
       and seek i o =
-        begin match o with
+        (match o with
         | Curl.SEEK_SET -> n := Int64.to_int i
         | SEEK_END -> n := String.length s + Int64.to_int i
-        | SEEK_CUR -> n := !n + Int64.to_int i
-        end;
+        | SEEK_CUR -> n := !n + Int64.to_int i);
         Curl.SEEKFUNC_OK
-      in read, seek
+      in
+      read, seek
     | `Write f ->
       let buf = Bytes.create 1024 in
       let read i =
         let len = min i (Bytes.length buf) in
         let n = f buf len in
         Bytes.sub_string buf i n
-      and seek _ _ =
-        Curl.SEEKFUNC_CANTSEEK
-      in read, seek
+      and seek _ _ = Curl.SEEKFUNC_CANTSEEK in
+      read, seek
 
   let content_size_ = function
     | `String s -> Some (String.length s)

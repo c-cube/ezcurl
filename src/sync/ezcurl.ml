@@ -16,4 +16,3 @@ include Ezcurl_core.Make (struct
       Curl.CURLE_OK
     with Curl.CurlException (c, _, _) -> c
 end)
-

@@ -16,8 +16,8 @@ module Config : sig
 end
 
 type t = private { curl: Curl.t } [@@unboxed]
-(** A client, i.e. a cURL instance.
-      The wrapping record has been present since NEXT_RELEASE *)
+(** A client, i.e. a cURL instance. The wrapping record has been present since
+    NEXT_RELEASE *)
 
 val make :
   ?set_opts:(Curl.t -> unit) ->
@@ -26,10 +26,13 @@ val make :
   unit ->
   t
 (** Create a new client.
-   @param set_opts called before returning the client, to set options
-   @param cookiejar_file if provided, tell curl to use the given file path to store/load cookies (since NEXT_RELEASE)
-   @param enable_session_cookies if provided, enable cookie handling in curl so it store/load cookies (since NEXT_RELEASE)
-   *)
+    @param set_opts called before returning the client, to set options
+    @param cookiejar_file
+      if provided, tell curl to use the given file path to store/load cookies
+      (since NEXT_RELEASE)
+    @param enable_session_cookies
+      if provided, enable cookie handling in curl so it store/load cookies
+      (since NEXT_RELEASE) *)
 
 val delete : t -> unit
 (** Delete the client. It cannot be used anymore. *)
@@ -44,17 +47,17 @@ val set_no_signal : bool -> unit
 
 (** Cookie handling.
 
-@since NEXT_RELEASE *)
+    @since NEXT_RELEASE *)
 module Cookies : sig
   val flush_cookiejar : t -> unit
-  (** If [cookiejar_file] was provided in {!make}, this flushes the current set of cookies
-    to the provided file.
-    @since NEXT_RELEASE *)
+  (** If [cookiejar_file] was provided in {!make}, this flushes the current set
+      of cookies to the provided file.
+      @since NEXT_RELEASE *)
 
   val reload_cookiejar : t -> unit
-  (** If [cookiejar_file] was provided in {!make}, this reloads cookies from
-    the provided file.
-    @since NEXT_RELEASE *)
+  (** If [cookiejar_file] was provided in {!make}, this reloads cookies from the
+      provided file.
+      @since NEXT_RELEASE *)
 
   val get_cookies : t -> string list
   (** Get cookie list (in netscape format) *)
@@ -72,11 +75,10 @@ end
 
 type response_info = {
   ri_response_time: float;
-      (** Total time (in seconds) for the request/response pair.
-   See {!Curl.get_totaltime}. *)
+      (** Total time (in seconds) for the request/response pair. See
+          {!Curl.get_totaltime}. *)
   ri_redirect_count: int;
-      (** Number of redirects cURL followed.
-   See {!Curl.get_redirectcount}. *)
+      (** Number of redirects cURL followed. See {!Curl.get_redirectcount}. *)
 }
 (** Metadata about a response from the server. *)
 
@@ -85,7 +87,8 @@ val string_of_response_info : response_info -> string
 
 type 'body response = {
   code: int;
-      (** Response code. See https://developer.mozilla.org/en-US/docs/Web/HTTP/Status *)
+      (** Response code. See
+          https://developer.mozilla.org/en-US/docs/Web/HTTP/Status *)
   headers: (string * string) list;  (** Response headers *)
   body: 'body;  (** Response body, or [""] *)
   info: response_info;  (** Information about the response *)
@@ -98,8 +101,9 @@ val pp_response_with :
 val pp_response : Format.formatter -> string response -> unit
 val string_of_response : string response -> string
 
-(** The {{: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods} HTTP method}
-  to use *)
+(** The
+    {{:https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods} HTTP method}
+    to use *)
 type meth =
   | GET
   | POST of Curl.curlHTTPPost list
@@ -145,20 +149,19 @@ module type S = sig
       @param meth which method to use (see {!meth})
       @param tries how many times to retry in case of [CURLE_AGAIN] code
       @param client a client to reuse (instead of allocating a new one)
-      @param range an optional
-      {{: https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests} byte range}
-      to fetch (either to get large pages
-        by chunks, or to resume an interrupted download).
+      @param range
+        an optional
+        {{:https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests}
+         byte range} to fetch (either to get large pages by chunks, or to resume
+        an interrupted download).
       @param config configuration to set
-      @param content the content to send as the query's body, either
-        a [`String s] to write a single string, or [`Write f]
-        where [f] is a callback that is called on a buffer [b] with len [n]
-        (as in [f b n]) and returns how many bytes it wrote in the buffer
-        [b] starting at index [0] (at most [n] bytes).
-        It must return [0] when the content is entirely written, and not
-        before.
-      @param headers headers of the query
-  *)
+      @param content
+        the content to send as the query's body, either a [`String s] to write a
+        single string, or [`Write f] where [f] is a callback that is called on a
+        buffer [b] with len [n] (as in [f b n]) and returns how many bytes it
+        wrote in the buffer [b] starting at index [0] (at most [n] bytes). It
+        must return [0] when the content is entirely written, and not before.
+      @param headers headers of the query *)
 
   (** Push-based stream of bytes
       @since NEXT_RELEASE *)
@@ -179,10 +182,9 @@ module type S = sig
     write_into:#input_stream ->
     unit ->
     (unit response, Curl.curlCode * string) result io
-  (** HTTP call via cURL, with a streaming response body.
-      The body is given to [write_into] by chunks,
-      then [write_into#on_close ()] is called
-      and the response is returned.
+  (** HTTP call via cURL, with a streaming response body. The body is given to
+      [write_into] by chunks, then [write_into#on_close ()] is called and the
+      response is returned.
       @since NEXT_RELEASE *)
 
   val get :
@@ -194,9 +196,7 @@ module type S = sig
     url:string ->
     unit ->
     (string response, Curl.curlCode * string) result io
-  (** Shortcut for [http ~meth:GET]
-      See {!http} for more info.
-  *)
+  (** Shortcut for [http ~meth:GET] See {!http} for more info. *)
 
   val put :
     ?tries:int ->
@@ -207,9 +207,7 @@ module type S = sig
     content:[ `String of string | `Write of bytes -> int -> int ] ->
     unit ->
     (string response, Curl.curlCode * string) result io
-  (** Shortcut for [http ~meth:PUT]
-      See {!http} for more info.
-  *)
+  (** Shortcut for [http ~meth:PUT] See {!http} for more info. *)
 
   val post :
     ?tries:int ->
@@ -221,9 +219,7 @@ module type S = sig
     url:string ->
     unit ->
     (string response, Curl.curlCode * string) result io
-  (** Shortcut for [http ~meth:(POST params)]
-      See {!http} for more info.
-  *)
+  (** Shortcut for [http ~meth:(POST params)] See {!http} for more info. *)
 end
 
 module Make (IO : IO) : S with type 'a io = 'a IO.t

@@ -1,10 +1,9 @@
-
 (rule
  (alias runtest)
  (package ezcurl-lwt)
- (deps (:file README.md))
+ (deps
+  (:file README.md))
  (action
-   (progn
-     (run ocaml-mdx test %{deps})
-     (diff? %{file} %{file}.corrected))))
-
+  (progn
+   (run ocaml-mdx test %{deps})
+   (diff? %{file} %{file}.corrected))))

@@ -1,3 +1,3 @@
 (test
-  (name basic_test)
-  (libraries ezcurl))
+ (name basic_test)
+ (libraries ezcurl))
