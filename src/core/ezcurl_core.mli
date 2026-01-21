@@ -17,7 +17,7 @@ end
 
 type t = private { curl: Curl.t } [@@unboxed]
 (** A client, i.e. a cURL instance. The wrapping record has been present since
-    NEXT_RELEASE *)
+    0.3 *)
 
 val make :
   ?set_opts:(Curl.t -> unit) ->
@@ -29,10 +29,10 @@ val make :
     @param set_opts called before returning the client, to set options
     @param cookiejar_file
       if provided, tell curl to use the given file path to store/load cookies
-      (since NEXT_RELEASE)
+      (since 0.3)
     @param enable_session_cookies
       if provided, enable cookie handling in curl so it store/load cookies
-      (since NEXT_RELEASE) *)
+      (since 0.3) *)
 
 val delete : t -> unit
 (** Delete the client. It cannot be used anymore. *)
@@ -43,21 +43,21 @@ val with_client : ?set_opts:(Curl.t -> unit) -> (t -> 'a) -> 'a
 val set_no_signal : bool -> unit
 (** Set no_signal default value for each new client instance. Default is [true].
     See [CURLOPT_NOSIGNAL].
-    @since NEXT_RELEASE *)
+    @since 0.3 *)
 
 (** Cookie handling.
 
-    @since NEXT_RELEASE *)
+    @since 0.3 *)
 module Cookies : sig
   val flush_cookiejar : t -> unit
   (** If [cookiejar_file] was provided in {!make}, this flushes the current set
       of cookies to the provided file.
-      @since NEXT_RELEASE *)
+      @since 0.3 *)
 
   val reload_cookiejar : t -> unit
   (** If [cookiejar_file] was provided in {!make}, this reloads cookies from the
       provided file.
-      @since NEXT_RELEASE *)
+      @since 0.3 *)
 
   val get_cookies : t -> string list
   (** Get cookie list (in netscape format) *)
@@ -164,7 +164,7 @@ module type S = sig
       @param headers headers of the query *)
 
   (** Push-based stream of bytes
-      @since NEXT_RELEASE *)
+      @since 0.3 *)
   class type input_stream = object
     method on_close : unit -> unit
     method on_input : bytes -> int -> int -> unit
@@ -185,7 +185,7 @@ module type S = sig
   (** HTTP call via cURL, with a streaming response body. The body is given to
       [write_into] by chunks, then [write_into#on_close ()] is called and the
       response is returned.
-      @since NEXT_RELEASE *)
+      @since 0.3 *)
 
   val get :
     ?tries:int ->

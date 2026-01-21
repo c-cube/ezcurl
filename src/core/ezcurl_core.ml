@@ -261,7 +261,7 @@ module type S = sig
       @param headers headers of the query *)
 
   (** Push-stream of bytes
-      @since NEXT_RELEASE *)
+      @since 0.3 *)
   class type input_stream = object
     method on_close : unit -> unit
     method on_input : bytes -> int -> int -> unit
@@ -280,7 +280,7 @@ module type S = sig
     unit ->
     (unit response, Curl.curlCode * string) result io
   (** HTTP call via cURL, with a streaming response body.
-      @since NEXT_RELEASE *)
+      @since 0.3 *)
 
   val get :
     ?tries:int ->

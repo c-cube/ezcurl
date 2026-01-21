@@ -1,27 +1,38 @@
-## 0.2.4
+
+# 0.3
+
+- Provide seek function when uploading from string
+- make `CURLOPT_NOSIGNAL=false` the default; simplify
+- Expose underlying no signal in a global setting
+- implement `http_stream`
+- feat: add `Ezcurl.Cookies` module, get/set/transfer them
+
+- breaking: wrap Curl.t in record
+
+# 0.2.4
 
 - fix: global initialization logic is now hidden behind a mutex
   * depend on `thread`
 
-## 0.2.3
+# 0.2.3
 
 - fix: workaround servers which do not understand "Expect" header
 - fix: correctly set size of payload for POST
 - make sure to setup 'PUT" correctly
 - allow POST with non-form data
 
-## 0.2.2
+# 0.2.2
 
 - fix: do not reset client if passed as argument
 
-## 0.2.1
+# 0.2.1
 
 - fix setting of headers
 
-## 0.2
+# 0.2
 
 - add default user agent
 
-## 0.1
+# 0.1
 
 - initial release
