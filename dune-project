@@ -23,6 +23,7 @@
   (ocurl
    (>= 0.8))
   (odoc :with-doc)
+  (tiny_httpd (and (>= 0.19) :with-test))
   (ocaml
    (>= 4.03))))
 

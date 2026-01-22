@@ -1,3 +1,4 @@
 (test
  (name basic_test)
- (libraries ezcurl))
+ (package ezcurl)
+ (libraries ezcurl tiny_httpd threads.posix))
