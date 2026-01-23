@@ -49,8 +49,9 @@ Using `ezcurl-lwt`, a module `Ezcurl_lwt` becomes available, with
 functions that are similar to the ones in `Ezcurl` but are non blocking.
 This makes it easy to run several queries in parallel:
 
-```ocaml
+```ocaml, skip
 # #require "ezcurl-lwt";;
+
 # let urls = [
   "https://en.wikipedia.org/wiki/CURL";
   "https://en.wikipedia.org/wiki/OCaml";
