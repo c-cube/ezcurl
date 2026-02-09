@@ -399,7 +399,9 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
     let do_cleanup, self =
       match client with
       | None -> true, make ()
-      | Some c -> false, c
+      | Some c ->
+        Curl.reset c.curl;
+        false, c
     in
     _apply_config self config;
     opt_iter range ~f:(fun s -> Curl.set_range self.curl s);
