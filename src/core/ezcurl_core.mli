@@ -15,7 +15,10 @@ module Config : sig
   val to_string : t -> string
 end
 
-type t = private { curl: Curl.t } [@@unboxed]
+type t = {
+  curl: Curl.t;
+  set_opts: Curl.t -> unit;
+}
 (** A client, i.e. a cURL instance. The wrapping record has been present since
     0.3 *)
 

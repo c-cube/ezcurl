@@ -68,7 +68,11 @@ module Config = struct
   let to_string s = Format.asprintf "%a" pp s
 end
 
-type t = { curl: Curl.t } [@@unboxed]
+type t = {
+  curl: Curl.t;
+  set_opts: Curl.t -> unit;
+}
+
 type client = t
 
 let _top_mutex = Mutex.create ()
@@ -103,7 +107,7 @@ let make ?(set_opts = fun _ -> ()) ?cookiejar_file
       Curl.set_cookiefile curl file);
   if enable_session_cookies then Curl.set_cookiefile curl "";
   set_opts curl;
-  { curl }
+  { curl; set_opts }
 
 let delete (self : t) = Curl.cleanup self.curl
 let _cfg_no_signal = ref false (* default: 0 *)
@@ -403,6 +407,7 @@ module Make (IO : IO) : S with type 'a io = 'a IO.t = struct
       | None -> true, make ()
       | Some c ->
         Curl.reset c.curl;
+        c.set_opts c.curl;
         false, c
     in
     _apply_config self config;
