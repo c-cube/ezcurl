@@ -11,7 +11,7 @@ doc: "https://c-cube.github.io/ezcurl/"
 bug-reports: "https://github.com/c-cube/ezcurl/issues"
 depends: [
   "dune" {>= "3.0"}
-  "ocurl" {>= "0.8"}
+  "curl" {>= "0.8"}
   "odoc" {with-doc}
   "tiny_httpd" {>= "0.19" & with-test}
   "ocaml" {>= "4.03"}

@@ -20,7 +20,7 @@
  (tags
   ("curl" "web" "http" "client"))
  (depends
-  (ocurl
+  (curl
    (>= 0.8))
   (odoc :with-doc)
   (tiny_httpd (and (>= 0.19) :with-test))
