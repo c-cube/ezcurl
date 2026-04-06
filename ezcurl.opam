@@ -14,7 +14,7 @@ depends: [
   "curl" {>= "0.8"}
   "odoc" {with-doc}
   "tiny_httpd" {>= "0.19" & with-test}
-  "ocaml" {>= "4.03"}
+  "ocaml" {>= "4.11"}
 ]
 build: [
   ["dune" "subst"] {dev}

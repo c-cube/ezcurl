@@ -15,7 +15,6 @@ depends: [
   "lwt"
   "mdx" {with-test}
   "odoc" {with-doc}
-  "ocaml" {>= "4.03"}
 ]
 build: [
   ["dune" "subst"] {dev}

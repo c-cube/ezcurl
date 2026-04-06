@@ -25,7 +25,7 @@
   (odoc :with-doc)
   (tiny_httpd (and (>= 0.19) :with-test))
   (ocaml
-   (>= 4.03))))
+   (>= 4.11))))
 
 (package
  (name ezcurl-lwt)
@@ -37,6 +37,4 @@
    (= :version))
   lwt
   (mdx :with-test)
-  (odoc :with-doc)
-  (ocaml
-   (>= 4.03))))
+  (odoc :with-doc)))
