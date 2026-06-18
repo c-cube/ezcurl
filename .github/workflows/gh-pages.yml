@@ -3,35 +3,26 @@ name: github pages
 on:
   push:
     branches:
-      - main
+      - main # Set a branch name to trigger deployment
 
 jobs:
   deploy:
+    name: Deploy doc
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    container: ghcr.io/c-cube/c-cube-commmon/ci-doc-5.3:latest
     steps:
-      - uses: actions/checkout@main
-      - uses: ocaml/setup-ocaml@v3
-        with:
-          ocaml-compiler: '5.03'
+      - uses: actions/checkout@v6
 
-      - name: Pin
-        run: opam pin -n .
+      - run: opam pin -n .
 
-      - name: Depext
-        run: opam depext -yt ezcurl ezcurl-lwt
+      - run: opam install ezcurl ezcurl-lwt -t
 
-      - name: Deps
-        run: opam install -d . --deps-only
-
-      - name: Build
-        run: opam exec -- dune build @doc
+      - run: opam exec -- odig odoc --cache-dir=_doc/ ezcurl ezcurl-lwt
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_build/default/_doc/_html/
+          publish_dir: ./_doc/html
           destination_dir: .
           enable_jekyll: false
