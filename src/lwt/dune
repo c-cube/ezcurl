@@ -2,4 +2,4 @@
  (name ezcurl_lwt)
  (public_name ezcurl-lwt)
  (flags :standard -warn-error -32)
- (libraries curl.lwt ezcurl.core))
+ (libraries curl curl_lwt ezcurl.core))

@@ -13,6 +13,7 @@ depends: [
   "dune" {>= "3.0"}
   "ezcurl" {= version}
   "lwt"
+  "curl_lwt"
   "mdx" {with-test}
   "odoc" {with-doc}
 ]

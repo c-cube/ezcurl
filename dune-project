@@ -11,7 +11,10 @@
 (maintainers "simon.cruanes.2007@m4x.org")
 
 (authors "Simon Cruanes")
-(source (github c-cube/ezcurl))
+
+(source
+ (github c-cube/ezcurl))
+
 (documentation https://c-cube.github.io/ezcurl/)
 
 (package
@@ -23,7 +26,10 @@
   (curl
    (>= 0.8))
   (odoc :with-doc)
-  (tiny_httpd (and (>= 0.19) :with-test))
+  (tiny_httpd
+   (and
+    (>= 0.19)
+    :with-test))
   (ocaml
    (>= 4.11))))
 
@@ -36,5 +42,6 @@
   (ezcurl
    (= :version))
   lwt
+  curl_lwt
   (mdx :with-test)
   (odoc :with-doc)))
