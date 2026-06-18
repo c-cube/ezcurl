@@ -117,6 +117,7 @@ type meth =
   | OPTIONS
   | TRACE
   | PATCH
+  | QUERY  (** new QUERY verb, @since NEXT_RELEASE *)
   | HTTP_CUSTOM of string  (** Custom HTTP method (e.g., for WebDAV) *)
 
 val pp_meth : Format.formatter -> meth -> unit
