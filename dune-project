@@ -2,7 +2,7 @@
 
 (name ezcurl)
 
-(version 0.3)
+(version 0.4)
 
 (generate_opam_files true)
 

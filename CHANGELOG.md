@@ -1,4 +1,15 @@
 
+# 0.4
+
+- explicit dep on `curl_lwt`
+- add `QUERY` method
+- move to ocaml >= 4.11 bc curl bindings did
+- move to `curl` instead of `ocurl` as underlying library
+- set options after resetting curl handle (#29)
+- add custom method variant for extended HTTP methods
+- reset easy handle before use
+- fix: `PATCH` does upload
+
 # 0.3
 
 - Provide seek function when uploading from string
