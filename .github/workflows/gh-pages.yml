@@ -15,7 +15,7 @@ jobs:
 
       - run: opam pin -n .
 
-      - run: opam install ezcurl ezcurl-lwt -t
+      - run: apt update && opam install ezcurl ezcurl-lwt -t
 
       - run: opam exec -- odig odoc --cache-dir=_doc/ ezcurl ezcurl-lwt
 
